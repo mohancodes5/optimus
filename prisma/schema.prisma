@@ -1,0 +1,157 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./dev.db"
+}
+
+enum Role {
+  ADMIN
+  STAFF
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum PaymentStatus {
+  PAID
+  PENDING
+  OVERDUE
+}
+
+enum MemberStatus {
+  ACTIVE
+  EXPIRED
+  SUSPENDED
+}
+
+enum NotificationType {
+  EXPIRING
+  UNPAID
+  RENEWAL
+  GENERAL
+}
+
+enum NotificationChannel {
+  EMAIL
+  SMS
+  IN_APP
+}
+
+model User {
+  id           String   @id @default(cuid())
+  name         String
+  email        String   @unique
+  passwordHash String
+  role         Role     @default(STAFF)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  paymentsCreated Payment[]      @relation("PaymentCreatedBy")
+  notifications   Notification[]
+  attendances     Attendance[]   @relation("CheckedInBy")
+}
+
+model MembershipPlan {
+  id           String   @id @default(cuid())
+  name         String
+  description  String?
+  durationDays Int
+  feeAmount    Decimal
+  perks        Json
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  members  Member[]
+  payments Payment[]
+}
+
+model Member {
+  id               String         @id @default(cuid())
+  fullName         String
+  email            String         @unique
+  phone            String
+  gender           Gender
+  emergencyContact String?
+  planId           String
+  startDate        DateTime
+  expiryDate       DateTime
+  paymentStatus    PaymentStatus  @default(PENDING)
+  status           MemberStatus   @default(ACTIVE)
+  notes            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  plan          MembershipPlan @relation(fields: [planId], references: [id])
+  payments      Payment[]
+  attendances   Attendance[]
+  notifications Notification[]
+
+  @@index([expiryDate])
+  @@index([status])
+  @@index([paymentStatus])
+  @@index([fullName])
+}
+
+model Payment {
+  id          String        @id @default(cuid())
+  memberId    String
+  planId      String
+  amount      Decimal
+  status      PaymentStatus @default(PENDING)
+  paidAt      DateTime?
+  dueDate     DateTime
+  method      String?
+  notes       String?
+  createdById String?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+
+  member    Member         @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  plan      MembershipPlan @relation(fields: [planId], references: [id])
+  createdBy User?          @relation("PaymentCreatedBy", fields: [createdById], references: [id])
+
+  @@index([memberId])
+  @@index([status])
+  @@index([paidAt])
+}
+
+model Attendance {
+  id            String   @id @default(cuid())
+  memberId      String
+  checkedInAt   DateTime @default(now())
+  checkedInById String?
+  notes         String?
+
+  member      Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  checkedInBy User?  @relation("CheckedInBy", fields: [checkedInById], references: [id])
+
+  @@index([memberId])
+  @@index([checkedInAt])
+}
+
+model Notification {
+  id        String              @id @default(cuid())
+  memberId  String?
+  userId    String?
+  type      NotificationType
+  channel   NotificationChannel @default(IN_APP)
+  title     String
+  message   String
+  sent      Boolean             @default(false)
+  sentAt    DateTime?
+  createdAt DateTime            @default(now())
+
+  member Member? @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  user   User?   @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([memberId])
+  @@index([sent])
+  @@index([createdAt])
+}

@@ -1,0 +1,43 @@
+import { z } from "zod";
+
+export const loginSchema = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+});
+
+export const memberSchema = z.object({
+  fullName: z.string().min(2, "Name is required"),
+  email: z.string().email("Valid email required"),
+  phone: z.string().min(7, "Phone is required"),
+  gender: z.enum(["MALE", "FEMALE", "OTHER"]),
+  emergencyContact: z.string().optional().nullable(),
+  planId: z.string().min(1, "Plan is required"),
+  startDate: z.string().min(1, "Start date is required"),
+  paymentStatus: z.enum(["PAID", "PENDING", "OVERDUE"]).default("PENDING"),
+  notes: z.string().optional().nullable(),
+});
+
+export const planSchema = z.object({
+  name: z.string().min(2),
+  description: z.string().optional().nullable(),
+  durationDays: z.coerce.number().int().positive(),
+  feeAmount: z.coerce.number().positive(),
+  perks: z.array(z.string()).default([]),
+  isActive: z.boolean().default(true),
+});
+
+export const attendanceSchema = z.object({
+  memberId: z.string().min(1),
+  notes: z.string().optional().nullable(),
+});
+
+export const notificationSchema = z.object({
+  memberId: z.string().min(1),
+  type: z.enum(["EXPIRING", "UNPAID", "RENEWAL", "GENERAL"]),
+  channel: z.enum(["EMAIL", "SMS", "IN_APP"]).default("EMAIL"),
+  title: z.string().min(1),
+  message: z.string().min(1),
+});
+
+export type MemberInput = z.infer<typeof memberSchema>;
+export type PlanInput = z.infer<typeof planSchema>;
