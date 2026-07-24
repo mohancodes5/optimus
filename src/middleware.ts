@@ -1,11 +1,12 @@
+import NextAuth from "next-auth";
 import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
-import { getToken } from "next-auth/jwt";
+import { authConfig } from "@/lib/auth.config";
 
-const publicPaths = ["/login"];
+const { auth } = NextAuth(authConfig);
 
-export async function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+export default auth((req) => {
+  const { pathname } = req.nextUrl;
+  const isLoggedIn = !!req.auth;
 
   if (
     pathname.startsWith("/api/auth") ||
@@ -17,28 +18,24 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  const token = await getToken({
-    req: request,
-    secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-  });
+  if (pathname.startsWith("/login")) {
+    if (isLoggedIn) {
+      return NextResponse.redirect(new URL("/", req.nextUrl));
+    }
+    return NextResponse.next();
+  }
 
-  const isPublic = publicPaths.some((p) => pathname.startsWith(p));
-
-  if (!token && !isPublic) {
+  if (!isLoggedIn) {
     if (pathname.startsWith("/api/")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
-    const loginUrl = new URL("/login", request.url);
+    const loginUrl = new URL("/login", req.nextUrl.origin);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (token && pathname === "/login") {
-    return NextResponse.redirect(new URL("/", request.url));
-  }
-
   return NextResponse.next();
-}
+});
 
 export const config = {
   matcher: ["/((?!_next/static|_next/image|favicon.ico).*)"],

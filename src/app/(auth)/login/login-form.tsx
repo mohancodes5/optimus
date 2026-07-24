@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
+import { signIn, getSession } from "next-auth/react";
 import { useSearchParams } from "next/navigation";
 import { Dumbbell } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -23,31 +23,30 @@ export default function LoginForm() {
     setError("");
 
     try {
-      const res = await Promise.race([
-        signIn("credentials", {
-          email: email.trim().toLowerCase(),
-          password,
-          redirect: false,
-          callbackUrl,
-        }),
-        new Promise<null>((resolve) => setTimeout(() => resolve(null), 20000)),
-      ]);
+      const res = await signIn("credentials", {
+        email: email.trim().toLowerCase(),
+        password,
+        redirect: false,
+        callbackUrl,
+      });
 
-      if (!res) {
-        setError("Login timed out. Check Vercel env: AUTH_URL, DATABASE_URL, AUTH_SECRET.");
-        return;
-      }
-
-      if (res.error) {
+      if (res?.error) {
         setError("Invalid email or password. Use admin@gymflow.app / password123");
+        setLoading(false);
         return;
       }
 
-      // Hard navigation so the session cookie is picked up reliably on Vercel
-      window.location.href = callbackUrl.startsWith("/") ? callbackUrl : "/";
+      // Wait until the session cookie is readable, then hard-navigate home
+      for (let i = 0; i < 10; i++) {
+        const session = await getSession();
+        if (session?.user) break;
+        await new Promise((r) => setTimeout(r, 150));
+      }
+
+      const target = callbackUrl.startsWith("/") ? callbackUrl : "/";
+      window.location.assign(target);
     } catch {
-      setError("Login failed. Verify AUTH_URL is https://optimusv02.vercel.app on Vercel.");
-    } finally {
+      setError("Login failed. Please try again.");
       setLoading(false);
     }
   }
