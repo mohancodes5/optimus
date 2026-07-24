@@ -12,7 +12,9 @@ export type SmsResult = {
 function getClient() {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
-  if (!sid || !token) return null;
+  if (!sid || !token || token.includes("[") || token === "YOUR_AUTH_TOKEN") {
+    return null;
+  }
   return twilio(sid, token);
 }
 
@@ -21,13 +23,15 @@ export async function sendSms(params: {
   body: string;
 }): Promise<SmsResult> {
   const client = getClient();
+  const messagingServiceSid = process.env.TWILIO_MESSAGING_SERVICE_SID;
   const from = process.env.TWILIO_PHONE_NUMBER;
 
-  if (!client || !from) {
+  if (!client || (!messagingServiceSid && !from)) {
     return {
       ok: false,
       skipped: true,
-      error: "Twilio is not configured (TWILIO_ACCOUNT_SID / AUTH_TOKEN / PHONE_NUMBER)",
+      error:
+        "Twilio is not configured. Set TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN, and TWILIO_MESSAGING_SERVICE_SID (or TWILIO_PHONE_NUMBER).",
     };
   }
 
@@ -41,9 +45,11 @@ export async function sendSms(params: {
 
   try {
     const message = await client.messages.create({
-      from,
       to,
       body: params.body.slice(0, 1600),
+      ...(messagingServiceSid
+        ? { messagingServiceSid }
+        : { from: from! }),
     });
     return { ok: true, sid: message.sid, to };
   } catch (error) {

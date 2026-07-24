@@ -29,23 +29,39 @@ export function ExpiringPlansWidget({
     setLoadingId(member.id);
     try {
       const days = daysUntilExpiry(member.expiryDate);
-      const res = await fetch("/api/notifications", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          memberId: member.id,
-          type: "EXPIRING",
-          channel: "EMAIL",
-          title: "Membership renewal reminder",
-          message: `Hi ${member.fullName}, your ${member.plan.name} plan expires in ${days} day(s) on ${formatDate(member.expiryDate)}. Renew to keep training uninterrupted.`,
+      const payload = {
+        memberId: member.id,
+        type: "EXPIRING" as const,
+        title: "Membership renewal reminder",
+        message: `Hi ${member.fullName}, your ${member.plan.name} plan at Optimus Fitness expires in ${days} day(s) on ${formatDate(member.expiryDate)}. Renew to keep training.`,
+      };
+
+      const [smsRes, emailRes] = await Promise.all([
+        fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, channel: "SMS" }),
         }),
-      });
-      const json = await res.json();
-      if (!res.ok) throw new Error(json.delivery?.error || json.error || "Failed to send");
-      if (json.delivery?.skipped) {
-        toast.message("Email skipped — add RESEND_API_KEY in env");
-      } else {
-        toast.success(`Renewal alert sent to ${member.email}`);
+        fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, channel: "EMAIL" }),
+        }),
+      ]);
+
+      const smsJson = await smsRes.json();
+      const emailJson = await emailRes.json();
+
+      if (smsJson.delivery?.sent) {
+        toast.success(`SMS reminder sent to ${member.phone}`);
+      } else if (smsJson.delivery?.skipped) {
+        toast.message("SMS skipped — set TWILIO_AUTH_TOKEN in env");
+      } else if (smsJson.delivery?.error) {
+        toast.error(`SMS failed: ${smsJson.delivery.error}`);
+      }
+
+      if (emailJson.delivery?.sent) {
+        toast.success(`Email reminder sent to ${member.email}`);
       }
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not send renewal alert");
@@ -114,7 +130,7 @@ export function ExpiringPlansWidget({
                     onClick={() => sendAlert(member)}
                   >
                     <Bell className="h-3.5 w-3.5" />
-                    Send Renewal Alert
+                    Send SMS / Email Alert
                   </Button>
                   <Button
                     size="sm"

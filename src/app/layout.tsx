@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { Toaster } from "sonner";
 import { Providers } from "@/components/providers";
+import { APP_NAME } from "@/lib/brand";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -15,8 +16,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "GymFlow — Gym Management",
-  description: "Modern gym management dashboard for members, plans, and check-ins",
+  title: `${APP_NAME} — Gym Management`,
+  description: "Gym management dashboard for members, plans, and check-ins",
 };
 
 export default function RootLayout({

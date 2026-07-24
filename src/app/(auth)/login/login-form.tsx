@@ -58,7 +58,7 @@ export default function LoginForm() {
           <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-primary to-sky text-white shadow-lg shadow-primary/30">
             <Dumbbell className="h-7 w-7" />
           </div>
-          <CardTitle className="text-2xl text-foreground">GymFlow</CardTitle>
+          <CardTitle className="text-2xl text-foreground">Optimus Fitness</CardTitle>
           <CardDescription>Sign in to manage members, plans, and check-ins</CardDescription>
         </CardHeader>
         <CardContent>

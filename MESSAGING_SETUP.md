@@ -30,17 +30,21 @@ EMAIL_FROM="GymFlow <onboarding@resend.dev>"
 
 ## 2. Twilio (SMS)
 
-1. Create account at https://console.twilio.com  
-2. Get Account SID + Auth Token  
-3. Buy/get a phone number  
-4. Member phones should be E.164 (`+919876543210`). 10-digit numbers are prefixed with `SMS_DEFAULT_COUNTRY_CODE` (default `+91`).
+1. Twilio Console → Account SID + Auth Token  
+2. Use a **Messaging Service SID** (MG...) — preferred  
+   Or a From phone number  
 
 ```env
-TWILIO_ACCOUNT_SID="AC..."
-TWILIO_AUTH_TOKEN="..."
-TWILIO_PHONE_NUMBER="+1..."
+TWILIO_ACCOUNT_SID="ACxxxxxxxx"
+TWILIO_AUTH_TOKEN="paste-real-auth-token-here"
+TWILIO_MESSAGING_SERVICE_SID="MGxxxxxxxx"
 SMS_DEFAULT_COUNTRY_CODE="+91"
 ```
+
+Member phones: `+919876543210` (10-digit numbers get +91 automatically).
+
+Welcome SMS example:  
+`Hi Name, you are added to Optimus Fitness Studio. Your Monthly Basic plan is active until ...`
 
 ## 3. Cron secret
 

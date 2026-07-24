@@ -3,6 +3,7 @@ import { prisma } from "@/lib/prisma";
 import { sendEmail } from "@/lib/email";
 import { sendSms } from "@/lib/sms";
 import { formatDate } from "@/lib/utils";
+import { APP_NAME } from "@/lib/brand";
 
 export type NotifyInput = {
   memberId: string;
@@ -57,9 +58,14 @@ export async function notifyMember(input: NotifyInput): Promise<NotifyResult> {
   }
 
   if (input.channel === "SMS") {
+    // Keep SMS short — title + body can be redundant for Twilio
+    const body =
+      input.type === "GENERAL"
+        ? input.message
+        : `${input.title}: ${input.message}`;
     const result = await sendSms({
       to: member.phone,
-      body: `${input.title}\n${input.message}`,
+      body,
     });
     sent = result.ok;
     providerId = result.sid;
@@ -99,9 +105,10 @@ export async function sendWelcomeMessages(params: {
   expiryDate: Date | string;
   channels?: NotificationChannel[];
 }) {
+  // Prefer SMS first for registration; email if configured
   const channels = params.channels ?? (["SMS", "EMAIL"] as NotificationChannel[]);
-  const title = "Welcome to GymFlow";
-  const message = `Hi ${params.fullName}, welcome to GymFlow! Your ${params.planName} plan is active until ${formatDate(params.expiryDate)}. See you at the gym!`;
+  const title = `Welcome to ${APP_NAME}`;
+  const message = `Hi ${params.fullName}, you are added to ${APP_NAME} Studio. Your ${params.planName} plan is active until ${formatDate(params.expiryDate)}. Welcome aboard!`;
 
   const results: NotifyResult[] = [];
   for (const channel of channels) {
@@ -127,8 +134,8 @@ export async function sendRenewalMessages(params: {
   planName: string;
   expiryDate: Date | string;
 }) {
-  const title = "Plan renewed";
-  const message = `Hi ${params.fullName}, your ${params.planName} membership was renewed. New expiry: ${formatDate(params.expiryDate)}.`;
+  const title = `${APP_NAME} plan renewed`;
+  const message = `Hi ${params.fullName}, your ${params.planName} membership at ${APP_NAME} was renewed. New expiry: ${formatDate(params.expiryDate)}.`;
 
   return Promise.all([
     notifyMember({

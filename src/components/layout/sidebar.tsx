@@ -41,7 +41,7 @@ export function Sidebar({
           <Dumbbell className="h-5 w-5" />
         </div>
         <div>
-          <p className="text-sm font-semibold tracking-wide">GymFlow</p>
+          <p className="text-sm font-semibold tracking-wide">Optimus Fitness</p>
           <p className="text-xs text-muted-foreground">Management Suite</p>
         </div>
       </div>
@@ -94,7 +94,7 @@ export function Sidebar({
       <div className="fixed left-0 right-0 top-0 z-40 flex h-14 items-center justify-between border-b border-border bg-sidebar/95 px-4 backdrop-blur md:hidden">
         <div className="flex items-center gap-2">
           <Dumbbell className="h-5 w-5 text-primary" />
-          <span className="font-semibold">GymFlow</span>
+          <span className="font-semibold">Optimus Fitness</span>
         </div>
         <Button variant="ghost" size="icon" onClick={() => setOpen((v) => !v)}>
           {open ? <X /> : <Menu />}

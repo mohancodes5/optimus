@@ -26,7 +26,7 @@ export async function sendEmail(params: {
     };
   }
 
-  const from = process.env.EMAIL_FROM || "GymFlow <onboarding@resend.dev>";
+  const from = process.env.EMAIL_FROM || "Optimus Fitness <onboarding@resend.dev>";
 
   const { data, error } = await resend.emails.send(
     {
@@ -38,7 +38,7 @@ export async function sendEmail(params: {
         params.html ??
         `<div style="font-family:Arial,sans-serif;line-height:1.5;color:#0f1b2d">
           <p>${params.text.replace(/\n/g, "<br/>")}</p>
-          <p style="color:#5b6b7c;font-size:12px;margin-top:24px">GymFlow · Membership alerts</p>
+          <p style="color:#5b6b7c;font-size:12px;margin-top:24px">Optimus Fitness · Membership alerts</p>
         </div>`,
     },
     params.idempotencyKey

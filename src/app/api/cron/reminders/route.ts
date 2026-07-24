@@ -85,7 +85,7 @@ export async function GET(request: NextRequest) {
     if (recent) continue;
 
     const title = "Payment reminder";
-    const message = `Hi ${member.fullName}, your GymFlow membership payment is still ${member.paymentStatus.toLowerCase()}. Please settle to avoid interruption.`;
+    const message = `Hi ${member.fullName}, your Optimus Fitness membership payment is still ${member.paymentStatus.toLowerCase()}. Please settle to avoid interruption.`;
 
     for (const channel of ["SMS", "EMAIL"] as const) {
       const delivery = await notifyMember({
