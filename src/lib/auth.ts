@@ -4,6 +4,22 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 import type { Role } from "@prisma/client";
 
+/**
+ * On Vercel, always prefer the real deployment host.
+ * A wrong AUTH_URL (e.g. localhost or a placeholder) breaks login cookies/CSRF.
+ */
+function resolveAuthUrl() {
+  const vercelHost =
+    process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
+  if (process.env.VERCEL && vercelHost) {
+    return `https://${vercelHost.replace(/^https?:\/\//, "")}`;
+  }
+  return process.env.AUTH_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+}
+
+process.env.AUTH_URL = resolveAuthUrl();
+process.env.NEXTAUTH_URL = process.env.AUTH_URL;
+
 declare module "next-auth" {
   interface User {
     role: Role;
@@ -28,7 +44,10 @@ declare module "@auth/core/jwt" {
 export const { handlers, auth, signIn, signOut } = NextAuth({
   trustHost: true,
   secret: process.env.AUTH_SECRET ?? process.env.NEXTAUTH_SECRET,
-  session: { strategy: "jwt" },
+  session: {
+    strategy: "jwt",
+    maxAge: 30 * 24 * 60 * 60,
+  },
   pages: {
     signIn: "/login",
   },

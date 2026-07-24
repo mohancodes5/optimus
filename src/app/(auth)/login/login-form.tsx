@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { signIn } from "next-auth/react";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { Dumbbell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,7 +10,6 @@ import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function LoginForm() {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
   const [email, setEmail] = useState("admin@gymflow.app");
@@ -22,21 +21,33 @@ export default function LoginForm() {
     e.preventDefault();
     setLoading(true);
     setError("");
+
     try {
-      const res = await signIn("credentials", {
-        email: email.trim().toLowerCase(),
-        password,
-        redirect: false,
-      });
-      if (res?.error) {
-        setError("Invalid email or password. Use admin@gymflow.app / password123");
-        setLoading(false);
+      const res = await Promise.race([
+        signIn("credentials", {
+          email: email.trim().toLowerCase(),
+          password,
+          redirect: false,
+          callbackUrl,
+        }),
+        new Promise<null>((resolve) => setTimeout(() => resolve(null), 20000)),
+      ]);
+
+      if (!res) {
+        setError("Login timed out. Check Vercel env: AUTH_URL, DATABASE_URL, AUTH_SECRET.");
         return;
       }
-      router.push(callbackUrl);
-      router.refresh();
+
+      if (res.error) {
+        setError("Invalid email or password. Use admin@gymflow.app / password123");
+        return;
+      }
+
+      // Hard navigation so the session cookie is picked up reliably on Vercel
+      window.location.href = callbackUrl.startsWith("/") ? callbackUrl : "/";
     } catch {
-      setError("Login failed. Restart the server after seeding the database.");
+      setError("Login failed. Verify AUTH_URL is https://optimusv02.vercel.app on Vercel.");
+    } finally {
       setLoading(false);
     }
   }
@@ -61,6 +72,7 @@ export default function LoginForm() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
+                autoComplete="username"
               />
             </div>
             <div className="space-y-2">
@@ -71,6 +83,7 @@ export default function LoginForm() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
+                autoComplete="current-password"
               />
             </div>
             {error ? <p className="text-sm text-danger">{error}</p> : null}

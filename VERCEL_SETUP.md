@@ -18,7 +18,8 @@ Copy values from your local `.env` into **Vercel → Project → Settings → En
 | `DIRECT_URL` | From your `.env` (pooler port **5432**) |
 | `AUTH_SECRET` | From your `.env` (or generate a new long secret) |
 | `NEXTAUTH_SECRET` | Same as `AUTH_SECRET` is fine |
-| `AUTH_URL` | Your live URL, e.g. `https://your-app.vercel.app` |
+| `AUTH_URL` | `https://optimusv02.vercel.app` (your real site — **not** localhost, **not** gymflow-xyz) |
+| `AUTH_TRUST_HOST` | `true` |
 
 Then **Redeploy**.
 
