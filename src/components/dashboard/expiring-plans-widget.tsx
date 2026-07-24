@@ -40,10 +40,15 @@ export function ExpiringPlansWidget({
           message: `Hi ${member.fullName}, your ${member.plan.name} plan expires in ${days} day(s) on ${formatDate(member.expiryDate)}. Renew to keep training uninterrupted.`,
         }),
       });
-      if (!res.ok) throw new Error("Failed to send");
-      toast.success(`Renewal alert sent to ${member.email}`);
-    } catch {
-      toast.error("Could not send renewal alert");
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.delivery?.error || json.error || "Failed to send");
+      if (json.delivery?.skipped) {
+        toast.message("Email skipped — add RESEND_API_KEY in env");
+      } else {
+        toast.success(`Renewal alert sent to ${member.email}`);
+      }
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send renewal alert");
     } finally {
       setLoadingId(null);
     }

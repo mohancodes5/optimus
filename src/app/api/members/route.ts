@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { memberSchema } from "@/lib/validations";
 import { calcExpiryDate, deriveMemberStatus } from "@/lib/utils";
+import { normalizePhone } from "@/lib/phone";
+import { sendWelcomeMessages } from "@/lib/notify";
 
 export async function GET(request: NextRequest) {
   const authResult = await requireSession();
@@ -73,6 +75,7 @@ export async function POST(request: NextRequest) {
   }
 
   const data = parsed.data;
+  const phone = normalizePhone(data.phone) ?? data.phone.trim();
   const plan = await prisma.membershipPlan.findUnique({ where: { id: data.planId } });
   if (!plan || !plan.isActive) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
@@ -87,8 +90,8 @@ export async function POST(request: NextRequest) {
       const created = await tx.member.create({
         data: {
           fullName: data.fullName,
-          email: data.email,
-          phone: data.phone,
+          email: data.email.toLowerCase().trim(),
+          phone,
           gender: data.gender,
           emergencyContact: data.emergencyContact || null,
           planId: data.planId,
@@ -117,7 +120,16 @@ export async function POST(request: NextRequest) {
       return created;
     });
 
-    return NextResponse.json(member, { status: 201 });
+    // Welcome SMS + email (non-blocking for response if providers missing)
+    const welcome = await sendWelcomeMessages({
+      memberId: member.id,
+      userId: authResult.session!.user.id,
+      fullName: member.fullName,
+      planName: member.plan.name,
+      expiryDate: member.expiryDate,
+    });
+
+    return NextResponse.json({ ...member, welcome }, { status: 201 });
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
       return NextResponse.json({ error: "Email already exists" }, { status: 409 });

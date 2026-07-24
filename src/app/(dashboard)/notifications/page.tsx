@@ -73,11 +73,20 @@ export default function NotificationsPage() {
               : `Hi ${member.fullName}, your membership is expiring soon. Renew today to keep your access.`,
         }),
       });
-      if (!res.ok) throw new Error("Failed");
-      toast.success(`${channel} reminder queued for ${member.fullName}`);
+      const json = await res.json();
+      if (!res.ok) {
+        throw new Error(json.delivery?.error || json.error || "Failed");
+      }
+      if (json.delivery?.skipped) {
+        toast.message(`${channel} skipped — provider not configured`);
+      } else if (json.delivery?.sent) {
+        toast.success(`${channel} sent to ${member.fullName}`);
+      } else {
+        toast.error(json.delivery?.error || "Delivery failed");
+      }
       await load();
-    } catch {
-      toast.error("Could not send reminder");
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not send reminder");
     } finally {
       setBusy(false);
     }

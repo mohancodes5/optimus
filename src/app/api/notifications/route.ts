@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { notificationSchema } from "@/lib/validations";
+import { notifyMember } from "@/lib/notify";
 
 export async function GET() {
   const authResult = await requireSession();
@@ -28,41 +29,44 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const member = await prisma.member.findUnique({
-    where: { id: parsed.data.memberId },
-  });
-  if (!member) {
-    return NextResponse.json({ error: "Member not found" }, { status: 404 });
-  }
-
-  // Simulated send — mark as sent immediately for demo / staging
-  const notification = await prisma.notification.create({
-    data: {
-      memberId: member.id,
+  try {
+    const delivery = await notifyMember({
+      memberId: parsed.data.memberId,
       userId: authResult.session!.user.id,
       type: parsed.data.type,
       channel: parsed.data.channel,
       title: parsed.data.title,
       message: parsed.data.message,
-      sent: true,
-      sentAt: new Date(),
-    },
-    include: {
-      member: { select: { id: true, fullName: true, email: true, phone: true } },
-    },
-  });
+      idempotencyKey: `${parsed.data.type}-${parsed.data.channel}/${parsed.data.memberId}/${Date.now()}`,
+    });
 
-  return NextResponse.json(
-    {
-      notification,
-      delivery: {
-        simulated: true,
-        channel: parsed.data.channel,
-        recipient:
-          parsed.data.channel === "SMS" ? member.phone : member.email,
-        status: "delivered",
+    const notification = await prisma.notification.findUnique({
+      where: { id: delivery.notificationId },
+      include: {
+        member: { select: { id: true, fullName: true, email: true, phone: true } },
       },
-    },
-    { status: 201 }
-  );
+    });
+
+    return NextResponse.json(
+      {
+        notification,
+        delivery: {
+          simulated: false,
+          sent: delivery.sent,
+          skipped: delivery.skipped ?? false,
+          channel: delivery.channel,
+          recipient: delivery.recipient,
+          providerId: delivery.providerId,
+          status: delivery.sent ? "delivered" : delivery.skipped ? "skipped" : "failed",
+          error: delivery.error,
+        },
+      },
+      { status: delivery.sent || delivery.skipped ? 201 : 502 }
+    );
+  } catch (error) {
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Failed to send notification" },
+      { status: 500 }
+    );
+  }
 }

@@ -4,6 +4,8 @@ import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { memberSchema } from "@/lib/validations";
 import { calcExpiryDate, deriveMemberStatus } from "@/lib/utils";
+import { sendRenewalMessages } from "@/lib/notify";
+import { normalizePhone } from "@/lib/phone";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -76,6 +78,14 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       return m;
     });
 
+    await sendRenewalMessages({
+      memberId: updated.id,
+      userId: authResult.session!.user.id,
+      fullName: updated.fullName,
+      planName: updated.plan.name,
+      expiryDate: updated.expiryDate,
+    });
+
     return NextResponse.json(updated);
   }
 
@@ -110,8 +120,8 @@ export async function PATCH(request: NextRequest, { params }: Params) {
       where: { id },
       data: {
         fullName: data.fullName,
-        email: data.email,
-        phone: data.phone,
+        email: data.email?.toLowerCase().trim(),
+        phone: data.phone ? normalizePhone(data.phone) ?? data.phone.trim() : undefined,
         gender: data.gender,
         emergencyContact: data.emergencyContact,
         planId,
