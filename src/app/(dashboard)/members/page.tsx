@@ -7,18 +7,14 @@ export default async function MembersPage() {
     orderBy: { feeAmount: "asc" },
   });
 
+  const serializedPlans = plans.map((p) => ({
+    ...p,
+    feeAmount: Number(p.feeAmount),
+  }));
+
   return (
-    <Suspense
-      fallback={
-        <div className="py-10 text-center text-sm text-muted-foreground">Loading members...</div>
-      }
-    >
-      <MembersManager
-        plans={plans.map((p) => ({
-          ...p,
-          feeAmount: Number(p.feeAmount),
-        }))}
-      />
+    <Suspense fallback={<p className="text-sm text-muted-foreground">Loading members...</p>}>
+      <MembersManager plans={serializedPlans} />
     </Suspense>
   );
 }

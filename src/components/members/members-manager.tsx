@@ -2,8 +2,8 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { Plus, Search, Pencil } from "lucide-react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Plus, Search, Pencil, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -50,18 +50,29 @@ type Member = {
   plan: Plan;
 };
 
-export function MembersManager({ plans }: { plans: Plan[] }) {
-  const searchParams = useSearchParams();
-  const initialStatus = searchParams.get("status") ?? "all";
-  const initialExpiring = searchParams.get("expiringSoon") === "true";
-  const initialJoined = searchParams.get("joinedThisMonth") === "true";
+const FILTER_LABELS: Record<string, string> = {
+  ACTIVE: "Active members",
+  expiringSoon: "Expiring soon",
+  joinedThisMonth: "New joiners this month",
+  paidThisMonth: "Paid this month",
+};
 
+export function MembersManager({ plans }: { plans: Plan[] }) {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const [members, setMembers] = useState<Member[]>([]);
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState(initialStatus);
+  const [status, setStatus] = useState(() => searchParams.get("status") ?? "all");
   const [paymentStatus, setPaymentStatus] = useState("all");
-  const [expiringSoon, setExpiringSoon] = useState(initialExpiring);
-  const [joinedThisMonth, setJoinedThisMonth] = useState(initialJoined);
+  const [expiringSoon, setExpiringSoon] = useState(
+    () => searchParams.get("expiringSoon") === "true"
+  );
+  const [joinedThisMonth, setJoinedThisMonth] = useState(
+    () => searchParams.get("joinedThisMonth") === "true"
+  );
+  const [paidThisMonth, setPaidThisMonth] = useState(
+    () => searchParams.get("paidThisMonth") === "true"
+  );
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -83,15 +94,26 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
     setStatus(searchParams.get("status") ?? "all");
     setExpiringSoon(searchParams.get("expiringSoon") === "true");
     setJoinedThisMonth(searchParams.get("joinedThisMonth") === "true");
+    setPaidThisMonth(searchParams.get("paidThisMonth") === "true");
     setPage(1);
   }, [searchParams]);
 
-  const filterLabel = useMemo(() => {
-    if (expiringSoon) return "Showing members expiring within 7 days";
-    if (joinedThisMonth) return "Showing members who joined this month";
-    if (status === "ACTIVE") return "Showing active members";
+  const activeFilterLabel = useMemo(() => {
+    if (expiringSoon) return FILTER_LABELS.expiringSoon;
+    if (joinedThisMonth) return FILTER_LABELS.joinedThisMonth;
+    if (paidThisMonth) return FILTER_LABELS.paidThisMonth;
+    if (status !== "all") return FILTER_LABELS[status] ?? status;
     return null;
-  }, [expiringSoon, joinedThisMonth, status]);
+  }, [expiringSoon, joinedThisMonth, paidThisMonth, status]);
+
+  const clearDashboardFilter = () => {
+    setStatus("all");
+    setExpiringSoon(false);
+    setJoinedThisMonth(false);
+    setPaidThisMonth(false);
+    setPage(1);
+    router.replace("/members");
+  };
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -104,23 +126,19 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
     if (paymentStatus !== "all") params.set("paymentStatus", paymentStatus);
     if (expiringSoon) params.set("expiringSoon", "true");
     if (joinedThisMonth) params.set("joinedThisMonth", "true");
+    if (paidThisMonth) params.set("paidThisMonth", "true");
 
     const res = await fetch(`/api/members?${params}`);
     const json = await res.json();
     setMembers(json.data ?? []);
     setTotalPages(json.pagination?.totalPages ?? 1);
     setLoading(false);
-  }, [page, q, status, paymentStatus, expiringSoon, joinedThisMonth]);
+  }, [page, q, status, paymentStatus, expiringSoon, joinedThisMonth, paidThisMonth]);
 
   useEffect(() => {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
   }, [load]);
-
-  function clearSpecialFilters() {
-    setExpiringSoon(false);
-    setJoinedThisMonth(false);
-  }
 
   return (
     <div className="space-y-4">
@@ -128,7 +146,9 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Members</h1>
           <p className="text-sm text-muted-foreground">
-            {filterLabel ?? "Search, filter, and manage gym memberships"}
+            {activeFilterLabel
+              ? `Showing: ${activeFilterLabel}`
+              : "Search, filter, and manage gym memberships"}
           </p>
         </div>
         <Button
@@ -144,7 +164,15 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
 
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-base">Directory</CardTitle>
+          <div className="flex items-center justify-between gap-3">
+            <CardTitle className="text-base">Directory</CardTitle>
+            {activeFilterLabel ? (
+              <Button size="sm" variant="outline" onClick={clearDashboardFilter}>
+                <X className="h-3.5 w-3.5" />
+                Clear filter
+              </Button>
+            ) : null}
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="flex flex-col gap-3 lg:flex-row">
@@ -164,8 +192,13 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
               value={status}
               onValueChange={(v) => {
                 setPage(1);
-                clearSpecialFilters();
+                setExpiringSoon(false);
+                setJoinedThisMonth(false);
+                setPaidThisMonth(false);
                 setStatus(v);
+                const params = new URLSearchParams();
+                if (v !== "all") params.set("status", v);
+                router.replace(params.toString() ? `/members?${params}` : "/members");
               }}
             >
               <SelectTrigger className="w-full lg:w-40">
@@ -195,18 +228,6 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
                 <SelectItem value="OVERDUE">Overdue</SelectItem>
               </SelectContent>
             </Select>
-            {(expiringSoon || joinedThisMonth) && (
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setPage(1);
-                  clearSpecialFilters();
-                  setStatus("all");
-                }}
-              >
-                Clear filter
-              </Button>
-            )}
           </div>
 
           <Table>

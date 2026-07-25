@@ -41,7 +41,7 @@ export function KpiCard({
   if (!href) return card;
 
   return (
-    <Link href={href} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+    <Link href={href} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
       {card}
     </Link>
   );

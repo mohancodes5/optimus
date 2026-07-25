@@ -124,7 +124,7 @@ export default async function DashboardPage() {
           hint="Paid invoices this month"
           icon={IndianRupee}
           accent="bg-lime/15 text-lime"
-          href="/revenue"
+          href="/members?paidThisMonth=true"
         />
         <KpiCard
           title="Expiring Soon"

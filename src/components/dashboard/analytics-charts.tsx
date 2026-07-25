@@ -44,17 +44,10 @@ export function AnalyticsCharts({
               <YAxis
                 stroke="#5b6b7c"
                 fontSize={12}
-                tickFormatter={(value: number) =>
-                  new Intl.NumberFormat("en-IN", {
-                    style: "currency",
-                    currency: "INR",
-                    notation: "compact",
-                    maximumFractionDigits: 1,
-                  }).format(value)
-                }
+                tickFormatter={(v) => `₹${Number(v).toLocaleString("en-IN")}`}
               />
               <Tooltip
-                formatter={(value) => formatCurrency(Number(value ?? 0))}
+                formatter={(value) => [formatCurrency(Number(value ?? 0)), "Revenue"]}
                 contentStyle={{
                   background: "#ffffff",
                   border: "1px solid #d7e3f0",

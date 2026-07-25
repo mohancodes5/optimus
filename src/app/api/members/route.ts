@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
+import { addDays, endOfMonth, startOfMonth } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { memberSchema } from "@/lib/validations";
@@ -19,6 +20,7 @@ export async function GET(request: NextRequest) {
   const pageSize = Math.min(50, Math.max(1, Number(searchParams.get("pageSize") ?? 10)));
   const expiringSoon = searchParams.get("expiringSoon") === "true";
   const joinedThisMonth = searchParams.get("joinedThisMonth") === "true";
+  const paidThisMonth = searchParams.get("paidThisMonth") === "true";
 
   const where: Prisma.MemberWhereInput = {};
 
@@ -35,19 +37,24 @@ export async function GET(request: NextRequest) {
     where.paymentStatus = paymentStatus as Prisma.EnumPaymentStatusFilter["equals"];
   }
 
+  const now = new Date();
+
   if (expiringSoon) {
-    const now = new Date();
-    const in7 = new Date();
-    in7.setDate(in7.getDate() + 7);
-    where.expiryDate = { gte: now, lte: in7 };
+    where.expiryDate = { gte: now, lte: addDays(now, 7) };
     where.status = "ACTIVE";
   }
 
   if (joinedThisMonth) {
-    const monthStart = new Date();
-    monthStart.setDate(1);
-    monthStart.setHours(0, 0, 0, 0);
-    where.createdAt = { gte: monthStart };
+    where.createdAt = { gte: startOfMonth(now) };
+  }
+
+  if (paidThisMonth) {
+    where.payments = {
+      some: {
+        status: "PAID",
+        paidAt: { gte: startOfMonth(now), lte: endOfMonth(now) },
+      },
+    };
   }
 
   const [total, members] = await Promise.all([
