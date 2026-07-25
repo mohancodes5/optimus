@@ -4,7 +4,6 @@ import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Table,
@@ -43,12 +42,13 @@ export default async function RevenuePage() {
             Paid invoices for {format(now, "MMMM yyyy")} · Total {formatCurrency(total)}
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/">
-            <ArrowLeft className="h-4 w-4" />
-            Back to dashboard
-          </Link>
-        </Button>
+        <Link
+          href="/"
+          className="inline-flex h-8 items-center gap-1 rounded-md border border-border px-3 text-xs font-medium hover:bg-accent hover:text-accent-foreground"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to dashboard
+        </Link>
       </div>
 
       <Card>
