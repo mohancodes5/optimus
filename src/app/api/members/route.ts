@@ -18,6 +18,7 @@ export async function GET(request: NextRequest) {
   const page = Math.max(1, Number(searchParams.get("page") ?? 1));
   const pageSize = Math.min(50, Math.max(1, Number(searchParams.get("pageSize") ?? 10)));
   const expiringSoon = searchParams.get("expiringSoon") === "true";
+  const joinedThisMonth = searchParams.get("joinedThisMonth") === "true";
 
   const where: Prisma.MemberWhereInput = {};
 
@@ -40,6 +41,13 @@ export async function GET(request: NextRequest) {
     in7.setDate(in7.getDate() + 7);
     where.expiryDate = { gte: now, lte: in7 };
     where.status = "ACTIVE";
+  }
+
+  if (joinedThisMonth) {
+    const monthStart = new Date();
+    monthStart.setDate(1);
+    monthStart.setHours(0, 0, 0, 0);
+    where.createdAt = { gte: monthStart };
   }
 
   const [total, members] = await Promise.all([

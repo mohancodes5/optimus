@@ -1,4 +1,4 @@
-import { Users, DollarSign, AlertTriangle, UserPlus } from "lucide-react";
+import { Users, IndianRupee, AlertTriangle, UserPlus } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import {
@@ -116,13 +116,15 @@ export default async function DashboardPage() {
           hint="Currently active memberships"
           icon={Users}
           accent="bg-sky/15 text-sky"
+          href="/members?status=ACTIVE"
         />
         <KpiCard
           title="Monthly Revenue"
           value={formatCurrency(data.kpis.monthlyRevenue)}
           hint="Paid invoices this month"
-          icon={DollarSign}
+          icon={IndianRupee}
           accent="bg-lime/15 text-lime"
+          href="/revenue"
         />
         <KpiCard
           title="Expiring Soon"
@@ -130,6 +132,7 @@ export default async function DashboardPage() {
           hint="Plans ending in ≤ 7 days"
           icon={AlertTriangle}
           accent="bg-warning/15 text-warning"
+          href="/members?expiringSoon=true"
         />
         <KpiCard
           title="New Joiners"
@@ -137,6 +140,7 @@ export default async function DashboardPage() {
           hint="Joined this month"
           icon={UserPlus}
           accent="bg-primary/15 text-primary"
+          href="/members?joinedThisMonth=true"
         />
       </div>
 

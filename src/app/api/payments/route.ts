@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { endOfMonth, startOfMonth } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 
@@ -8,14 +9,32 @@ export async function GET(request: NextRequest) {
 
   const { searchParams } = new URL(request.url);
   const memberId = searchParams.get("memberId");
+  const period = searchParams.get("period");
+  const status = searchParams.get("status");
+
+  const where: {
+    memberId?: string;
+    status?: "PAID" | "PENDING" | "OVERDUE";
+    paidAt?: { gte: Date; lte: Date };
+  } = {};
+
+  if (memberId) where.memberId = memberId;
+  if (status === "PAID" || status === "PENDING" || status === "OVERDUE") {
+    where.status = status;
+  }
+  if (period === "month") {
+    const now = new Date();
+    where.status = "PAID";
+    where.paidAt = { gte: startOfMonth(now), lte: endOfMonth(now) };
+  }
 
   const payments = await prisma.payment.findMany({
-    where: memberId ? { memberId } : undefined,
+    where,
     include: {
-      member: { select: { id: true, fullName: true } },
+      member: { select: { id: true, fullName: true, email: true, phone: true } },
       plan: { select: { id: true, name: true } },
     },
-    orderBy: { createdAt: "desc" },
+    orderBy: { paidAt: "desc" },
     take: 100,
   });
 

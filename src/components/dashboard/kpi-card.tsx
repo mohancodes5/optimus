@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
@@ -8,15 +9,22 @@ export function KpiCard({
   hint,
   icon: Icon,
   accent,
+  href,
 }: {
   title: string;
   value: string;
   hint?: string;
   icon: LucideIcon;
   accent?: string;
+  href?: string;
 }) {
-  return (
-    <Card className="overflow-hidden border-border/80 shadow-sm">
+  const card = (
+    <Card
+      className={cn(
+        "overflow-hidden border-border/80 shadow-sm",
+        href && "transition-colors hover:border-primary/40 hover:bg-accent/40"
+      )}
+    >
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-sm font-medium text-muted-foreground">{title}</CardTitle>
         <div className={cn("rounded-xl p-2.5", accent ?? "bg-primary/15 text-primary")}>
@@ -28,5 +36,13 @@ export function KpiCard({
         {hint ? <p className="mt-1 text-xs text-muted-foreground">{hint}</p> : null}
       </CardContent>
     </Card>
+  );
+
+  if (!href) return card;
+
+  return (
+    <Link href={href} className="block rounded-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+      {card}
+    </Link>
   );
 }

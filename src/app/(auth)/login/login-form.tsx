@@ -12,8 +12,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 export default function LoginForm() {
   const searchParams = useSearchParams();
   const callbackUrl = searchParams.get("callbackUrl") || "/";
-  const [email, setEmail] = useState("admin@gymflow.app");
-  const [password, setPassword] = useState("password123");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -31,7 +31,7 @@ export default function LoginForm() {
       });
 
       if (res?.error) {
-        setError("Invalid email or password. Use admin@gymflow.app / password123");
+        setError("Invalid email or password.");
         setLoading(false);
         return;
       }
@@ -90,11 +90,6 @@ export default function LoginForm() {
               {loading ? "Signing in..." : "Sign in"}
             </Button>
           </form>
-          <div className="mt-6 rounded-xl border border-sky/20 bg-secondary/80 p-3 text-xs text-muted-foreground">
-            <p className="mb-1 font-medium text-foreground">Demo accounts</p>
-            <p>admin@gymflow.app / password123 (ADMIN)</p>
-            <p>staff@gymflow.app / password123 (STAFF)</p>
-          </div>
         </CardContent>
       </Card>
     </div>

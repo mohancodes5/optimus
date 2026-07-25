@@ -12,6 +12,7 @@ import {
   YAxis,
 } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatCurrency } from "@/lib/utils";
 
 type Point = { month: string; revenue?: number; members?: number };
 
@@ -40,8 +41,20 @@ export function AnalyticsCharts({
               </defs>
               <CartesianGrid strokeDasharray="3 3" stroke="#d7e3f0" />
               <XAxis dataKey="month" stroke="#5b6b7c" fontSize={12} />
-              <YAxis stroke="#5b6b7c" fontSize={12} />
+              <YAxis
+                stroke="#5b6b7c"
+                fontSize={12}
+                tickFormatter={(value: number) =>
+                  new Intl.NumberFormat("en-IN", {
+                    style: "currency",
+                    currency: "INR",
+                    notation: "compact",
+                    maximumFractionDigits: 1,
+                  }).format(value)
+                }
+              />
               <Tooltip
+                formatter={(value) => formatCurrency(Number(value ?? 0))}
                 contentStyle={{
                   background: "#ffffff",
                   border: "1px solid #d7e3f0",

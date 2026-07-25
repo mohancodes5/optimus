@@ -1,7 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
+import { useSearchParams } from "next/navigation";
 import { Plus, Search, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,10 +51,17 @@ type Member = {
 };
 
 export function MembersManager({ plans }: { plans: Plan[] }) {
+  const searchParams = useSearchParams();
+  const initialStatus = searchParams.get("status") ?? "all";
+  const initialExpiring = searchParams.get("expiringSoon") === "true";
+  const initialJoined = searchParams.get("joinedThisMonth") === "true";
+
   const [members, setMembers] = useState<Member[]>([]);
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState("all");
+  const [status, setStatus] = useState(initialStatus);
   const [paymentStatus, setPaymentStatus] = useState("all");
+  const [expiringSoon, setExpiringSoon] = useState(initialExpiring);
+  const [joinedThisMonth, setJoinedThisMonth] = useState(initialJoined);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
   const [loading, setLoading] = useState(true);
@@ -71,6 +79,20 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
     notes: string;
   }> | null>(null);
 
+  useEffect(() => {
+    setStatus(searchParams.get("status") ?? "all");
+    setExpiringSoon(searchParams.get("expiringSoon") === "true");
+    setJoinedThisMonth(searchParams.get("joinedThisMonth") === "true");
+    setPage(1);
+  }, [searchParams]);
+
+  const filterLabel = useMemo(() => {
+    if (expiringSoon) return "Showing members expiring within 7 days";
+    if (joinedThisMonth) return "Showing members who joined this month";
+    if (status === "ACTIVE") return "Showing active members";
+    return null;
+  }, [expiringSoon, joinedThisMonth, status]);
+
   const load = useCallback(async () => {
     setLoading(true);
     const params = new URLSearchParams({
@@ -78,20 +100,27 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
       pageSize: "10",
     });
     if (q) params.set("q", q);
-    if (status !== "all") params.set("status", status);
+    if (status !== "all" && !expiringSoon) params.set("status", status);
     if (paymentStatus !== "all") params.set("paymentStatus", paymentStatus);
+    if (expiringSoon) params.set("expiringSoon", "true");
+    if (joinedThisMonth) params.set("joinedThisMonth", "true");
 
     const res = await fetch(`/api/members?${params}`);
     const json = await res.json();
     setMembers(json.data ?? []);
     setTotalPages(json.pagination?.totalPages ?? 1);
     setLoading(false);
-  }, [page, q, status, paymentStatus]);
+  }, [page, q, status, paymentStatus, expiringSoon, joinedThisMonth]);
 
   useEffect(() => {
     const t = setTimeout(load, 250);
     return () => clearTimeout(t);
   }, [load]);
+
+  function clearSpecialFilters() {
+    setExpiringSoon(false);
+    setJoinedThisMonth(false);
+  }
 
   return (
     <div className="space-y-4">
@@ -99,7 +128,7 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Members</h1>
           <p className="text-sm text-muted-foreground">
-            Search, filter, and manage gym memberships
+            {filterLabel ?? "Search, filter, and manage gym memberships"}
           </p>
         </div>
         <Button
@@ -135,6 +164,7 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
               value={status}
               onValueChange={(v) => {
                 setPage(1);
+                clearSpecialFilters();
                 setStatus(v);
               }}
             >
@@ -165,6 +195,18 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
                 <SelectItem value="OVERDUE">Overdue</SelectItem>
               </SelectContent>
             </Select>
+            {(expiringSoon || joinedThisMonth) && (
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setPage(1);
+                  clearSpecialFilters();
+                  setStatus("all");
+                }}
+              >
+                Clear filter
+              </Button>
+            )}
           </div>
 
           <Table>
