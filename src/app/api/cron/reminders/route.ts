@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { addDays, subHours } from "date-fns";
 import { prisma } from "@/lib/prisma";
-import { notifyMember } from "@/lib/notify";
+import { sendReminderMessages } from "@/lib/notify";
 import { formatDate, daysUntilExpiry } from "@/lib/utils";
 
 export const dynamic = "force-dynamic";
@@ -15,7 +15,7 @@ function authorizeCron(request: NextRequest) {
 
 /**
  * Daily reminders for expiring (≤7 days) and unpaid memberships.
- * Secure with CRON_SECRET. Configure in vercel.json crons.
+ * Sends SMS + WhatsApp + Email when configured.
  */
 export async function GET(request: NextRequest) {
   if (!authorizeCron(request)) {
@@ -61,15 +61,15 @@ export async function GET(request: NextRequest) {
     const title = "Membership expiring soon";
     const message = `Hi ${member.fullName}, your ${member.plan.name} plan expires in ${days} day(s) on ${formatDate(member.expiryDate)}. Renew to keep training.`;
 
-    for (const channel of ["SMS", "EMAIL"] as const) {
-      const delivery = await notifyMember({
-        memberId: member.id,
-        type: "EXPIRING",
-        channel,
-        title,
-        message,
-        idempotencyKey: `cron-expiring/${member.id}/${formatDate(now)}/${channel}`,
-      });
+    const deliveries = await sendReminderMessages({
+      memberId: member.id,
+      type: "EXPIRING",
+      title,
+      message,
+      variable1: formatDate(member.expiryDate),
+      variable2: `${days} day(s)`,
+    });
+    for (const delivery of deliveries) {
       results.push({ memberId: member.id, type: "EXPIRING", ...delivery });
     }
   }
@@ -87,15 +87,15 @@ export async function GET(request: NextRequest) {
     const title = "Payment reminder";
     const message = `Hi ${member.fullName}, your Optimus Fitness membership payment is still ${member.paymentStatus.toLowerCase()}. Please settle to avoid interruption.`;
 
-    for (const channel of ["SMS", "EMAIL"] as const) {
-      const delivery = await notifyMember({
-        memberId: member.id,
-        type: "UNPAID",
-        channel,
-        title,
-        message,
-        idempotencyKey: `cron-unpaid/${member.id}/${formatDate(now)}/${channel}`,
-      });
+    const deliveries = await sendReminderMessages({
+      memberId: member.id,
+      type: "UNPAID",
+      title,
+      message,
+      variable1: formatDate(now),
+      variable2: member.paymentStatus.toLowerCase(),
+    });
+    for (const delivery of deliveries) {
       results.push({ memberId: member.id, type: "UNPAID", ...delivery });
     }
   }

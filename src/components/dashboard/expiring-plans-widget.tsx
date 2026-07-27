@@ -36,11 +36,16 @@ export function ExpiringPlansWidget({
         message: `Hi ${member.fullName}, your ${member.plan.name} plan at Optimus Fitness expires in ${days} day(s) on ${formatDate(member.expiryDate)}. Renew to keep training.`,
       };
 
-      const [smsRes, emailRes] = await Promise.all([
+      const [smsRes, waRes, emailRes] = await Promise.all([
         fetch("/api/notifications", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ ...payload, channel: "SMS" }),
+        }),
+        fetch("/api/notifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ ...payload, channel: "WHATSAPP" }),
         }),
         fetch("/api/notifications", {
           method: "POST",
@@ -50,14 +55,23 @@ export function ExpiringPlansWidget({
       ]);
 
       const smsJson = await smsRes.json();
+      const waJson = await waRes.json();
       const emailJson = await emailRes.json();
 
       if (smsJson.delivery?.sent) {
         toast.success(`SMS reminder sent to ${member.phone}`);
       } else if (smsJson.delivery?.skipped) {
-        toast.message("SMS skipped — set TWILIO_AUTH_TOKEN in env");
+        toast.message("SMS skipped — configure Twilio SMS in env");
       } else if (smsJson.delivery?.error) {
         toast.error(`SMS failed: ${smsJson.delivery.error}`);
+      }
+
+      if (waJson.delivery?.sent) {
+        toast.success(`WhatsApp reminder sent to ${member.phone}`);
+      } else if (waJson.delivery?.skipped) {
+        toast.message("WhatsApp skipped — set TWILIO_WHATSAPP_FROM in env");
+      } else if (waJson.delivery?.error) {
+        toast.error(`WhatsApp failed: ${waJson.delivery.error}`);
       }
 
       if (emailJson.delivery?.sent) {

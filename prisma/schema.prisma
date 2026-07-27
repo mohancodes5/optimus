@@ -41,6 +41,7 @@ enum NotificationType {
 enum NotificationChannel {
   EMAIL
   SMS
+  WHATSAPP
   IN_APP
 }
 

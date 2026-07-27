@@ -154,10 +154,11 @@ export function MemberFormModal({
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone</Label>
+              <Label htmlFor="phone">Phone (WhatsApp / SMS)</Label>
               <Input
                 id="phone"
                 required
+                placeholder="+919876543210 or 9876543210"
                 value={form.phone}
                 onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
               />

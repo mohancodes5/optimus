@@ -55,7 +55,7 @@ export default function NotificationsPage() {
   async function sendReminder(
     member: Member,
     type: "UNPAID" | "EXPIRING",
-    channel: "EMAIL" | "SMS"
+    channel: "EMAIL" | "SMS" | "WHATSAPP"
   ) {
     setBusy(true);
     try {
@@ -97,7 +97,7 @@ export default function NotificationsPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Notifications</h1>
         <p className="text-sm text-muted-foreground">
-          Trigger email/SMS reminders for unpaid or expiring memberships
+          Trigger email, SMS, or WhatsApp reminders for unpaid or expiring memberships
         </p>
       </div>
 
@@ -123,7 +123,7 @@ export default function NotificationsPage() {
                     <p className="font-medium">{m.fullName}</p>
                     <p className="text-xs text-muted-foreground">{m.email}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
                       variant="outline"
@@ -139,6 +139,14 @@ export default function NotificationsPage() {
                       onClick={() => sendReminder(m, "UNPAID", "SMS")}
                     >
                       SMS
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => sendReminder(m, "UNPAID", "WHATSAPP")}
+                    >
+                      WhatsApp
                     </Button>
                   </div>
                 </div>
@@ -168,7 +176,7 @@ export default function NotificationsPage() {
                     <p className="font-medium">{m.fullName}</p>
                     <p className="text-xs text-muted-foreground">{m.phone}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <Button
                       size="sm"
                       variant="outline"
@@ -184,6 +192,14 @@ export default function NotificationsPage() {
                       onClick={() => sendReminder(m, "EXPIRING", "SMS")}
                     >
                       SMS
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => sendReminder(m, "EXPIRING", "WHATSAPP")}
+                    >
+                      WhatsApp
                     </Button>
                   </div>
                 </div>
