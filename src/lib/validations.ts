@@ -14,6 +14,7 @@ export const memberSchema = z.object({
   planId: z.string().min(1, "Plan is required"),
   startDate: z.string().min(1, "Start date is required"),
   paymentStatus: z.enum(["PAID", "PENDING", "OVERDUE"]).default("PENDING"),
+  status: z.enum(["ACTIVE", "EXPIRED", "SUSPENDED"]).optional(),
   notes: z.string().optional().nullable(),
 });
 
@@ -27,8 +28,12 @@ export const planSchema = z.object({
 });
 
 export const attendanceSchema = z.object({
-  memberId: z.string().min(1),
+  memberId: z.string().min(1).optional(),
+  memberCode: z.string().min(1).optional(),
   notes: z.string().optional().nullable(),
+  action: z.enum(["auto", "checkin", "checkout"]).default("auto"),
+}).refine((data) => Boolean(data.memberId || data.memberCode), {
+  message: "memberId or memberCode is required",
 });
 
 export const notificationSchema = z.object({

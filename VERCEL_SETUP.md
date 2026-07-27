@@ -1,43 +1,42 @@
-# Vercel + Supabase (ready to deploy)
+# Vercel + Supabase deploy
 
-## Fixed
-- Build error in `src/lib/plans.ts` — **fixed** (`next build` passes)
-- Prisma switched to **PostgreSQL**
-- Supabase project connected (`optimus` / `ap-southeast-1`)
-- Tables created + demo data seeded
-- Local Prisma Client connection verified
+## Environment variables
 
-## Vercel environment variables
+Set these in **Vercel → Project → Settings → Environment Variables** (Production + Preview):
 
-Copy values from your local `.env` into **Vercel → Project → Settings → Environment Variables**
-(Production + Preview):
-
-| Name | Where to get it |
-|------|------------------|
-| `DATABASE_URL` | From your `.env` (pooler port **6543**) |
-| `DIRECT_URL` | From your `.env` (pooler port **5432**) |
-| `AUTH_SECRET` | From your `.env` (or generate a new long secret) |
+| Name | Notes |
+|------|--------|
+| `DATABASE_URL` | Supabase pooler port **6543** + `?pgbouncer=true` |
+| `DIRECT_URL` | Supabase pooler port **5432** (session mode) |
+| `AUTH_SECRET` | Long random secret (`openssl rand -base64 32`) |
 | `NEXTAUTH_SECRET` | Same as `AUTH_SECRET` is fine |
-| `AUTH_URL` | `https://optimusv02.vercel.app` (your real site — **not** localhost, **not** gymflow-xyz) |
+| `AUTH_URL` | Your live URL, e.g. `https://your-app.vercel.app` |
 | `AUTH_TRUST_HOST` | `true` |
+| `TWILIO_*` / `RESEND_*` | Optional — SMS/email alerts |
+| `CRON_SECRET` | Required if using daily reminder cron |
 
-Then **Redeploy**.
+Do **not** use `db.xxx.supabase.co:5432` on Vercel (IPv6-only). Use `*.pooler.supabase.com`.
 
-Do **not** use `db.xxx.supabase.co:5432` on Vercel — that host is IPv6-only. Use the `*.pooler.supabase.com` URLs only.
+## First-time admin
 
-## Local login
+Never ship demo passwords. On a machine with production DB URLs in `.env`:
 
 ```bash
-npm run dev
+# .env
+SEED_ADMIN_EMAIL="owner@yourgym.com"
+SEED_ADMIN_PASSWORD="your-strong-password"
+SEED_ADMIN_NAME="Admin"
+SEED_CLEAR_DEMO="true"   # optional wipe of members/payments
+
+npm run db:seed
 ```
 
-- Admin: `admin@gymflow.app` / `password123`
-- Staff: `staff@gymflow.app` / `password123`
+Then sign in with that email/password. Add staff users and real members from the app.
 
-## Security
+## Security checklist
 
-1. You shared DB passwords in chat — **rotate** them in Supabase after deploy works.
-2. Tables have RLS disabled (Data API exposure). Run this in Supabase SQL Editor when ready:
+1. Rotate any secrets that were ever shared in chat or committed by mistake.
+2. Enable RLS on public tables if the Supabase Data API is exposed:
 
 ```sql
 ALTER TABLE public."User" ENABLE ROW LEVEL SECURITY;
@@ -48,4 +47,4 @@ ALTER TABLE public."Attendance" ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public."Notification" ENABLE ROW LEVEL SECURITY;
 ```
 
-Prisma still works afterward (uses a `BYPASSRLS` role).
+3. Redeploy after changing env vars.

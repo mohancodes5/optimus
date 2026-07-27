@@ -41,6 +41,7 @@ type MemberFormValues = {
   planId: string;
   startDate: string;
   paymentStatus: "PAID" | "PENDING";
+  status: "ACTIVE" | "EXPIRED" | "SUSPENDED";
   notes: string;
 };
 
@@ -53,6 +54,7 @@ const empty: MemberFormValues = {
   planId: "",
   startDate: new Date().toISOString().slice(0, 10),
   paymentStatus: "PENDING",
+  status: "ACTIVE",
   notes: "",
 };
 
@@ -244,6 +246,24 @@ export function MemberFormModal({
                 <SelectContent>
                   <SelectItem value="PAID">Paid</SelectItem>
                   <SelectItem value="PENDING">Pending</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="space-y-2">
+              <Label>Membership Status</Label>
+              <Select
+                value={form.status}
+                onValueChange={(v: MemberFormValues["status"]) =>
+                  setForm((f) => ({ ...f, status: v }))
+                }
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="ACTIVE">Active</SelectItem>
+                  <SelectItem value="EXPIRED">Expired</SelectItem>
+                  <SelectItem value="SUSPENDED">Suspended</SelectItem>
                 </SelectContent>
               </Select>
             </div>

@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { Prisma } from "@prisma/client";
-import { addDays, endOfMonth, startOfMonth } from "date-fns";
+import { addDays, endOfMonth, parse, startOfMonth } from "date-fns";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { memberSchema } from "@/lib/validations";
 import { calcExpiryDate, deriveMemberStatus } from "@/lib/utils";
 import { normalizePhone } from "@/lib/phone";
 import { sendWelcomeMessages } from "@/lib/notify";
+import { generateMemberCode } from "@/lib/member-code";
 
 export async function GET(request: NextRequest) {
   const authResult = await requireSession();
@@ -17,10 +18,12 @@ export async function GET(request: NextRequest) {
   const status = searchParams.get("status");
   const paymentStatus = searchParams.get("paymentStatus");
   const page = Math.max(1, Number(searchParams.get("page") ?? 1));
-  const pageSize = Math.min(50, Math.max(1, Number(searchParams.get("pageSize") ?? 10)));
+  const pageSize = Math.min(200, Math.max(1, Number(searchParams.get("pageSize") ?? 10)));
   const expiringSoon = searchParams.get("expiringSoon") === "true";
   const joinedThisMonth = searchParams.get("joinedThisMonth") === "true";
   const paidThisMonth = searchParams.get("paidThisMonth") === "true";
+  const joinedMonth = searchParams.get("joinedMonth"); // YYYY-MM
+  const exportAll = searchParams.get("export") === "true";
 
   const where: Prisma.MemberWhereInput = {};
 
@@ -29,6 +32,7 @@ export async function GET(request: NextRequest) {
       { fullName: { contains: q, mode: "insensitive" } },
       { email: { contains: q, mode: "insensitive" } },
       { phone: { contains: q, mode: "insensitive" } },
+      { memberCode: { contains: q, mode: "insensitive" } },
     ];
   }
 
@@ -44,8 +48,14 @@ export async function GET(request: NextRequest) {
     where.status = "ACTIVE";
   }
 
+  // Joined filters use membership startDate (when they joined the gym)
   if (joinedThisMonth) {
-    where.createdAt = { gte: startOfMonth(now) };
+    where.startDate = { gte: startOfMonth(now), lte: endOfMonth(now) };
+  }
+
+  if (joinedMonth && /^\d{4}-\d{2}$/.test(joinedMonth)) {
+    const monthStart = startOfMonth(parse(`${joinedMonth}-01`, "yyyy-MM-dd", new Date()));
+    where.startDate = { gte: monthStart, lte: endOfMonth(monthStart) };
   }
 
   if (paidThisMonth) {
@@ -57,12 +67,22 @@ export async function GET(request: NextRequest) {
     };
   }
 
+  if (exportAll) {
+    const members = await prisma.member.findMany({
+      where,
+      include: { plan: true },
+      orderBy: { startDate: "desc" },
+      take: 5000,
+    });
+    return NextResponse.json({ data: members });
+  }
+
   const [total, members] = await Promise.all([
     prisma.member.count({ where }),
     prisma.member.findMany({
       where,
       include: { plan: true },
-      orderBy: { createdAt: "desc" },
+      orderBy: { startDate: "desc" },
       skip: (page - 1) * pageSize,
       take: pageSize,
     }),
@@ -77,6 +97,15 @@ export async function GET(request: NextRequest) {
       totalPages: Math.ceil(total / pageSize),
     },
   });
+}
+
+async function uniqueMemberCode(tx: Prisma.TransactionClient) {
+  for (let i = 0; i < 8; i++) {
+    const code = generateMemberCode();
+    const exists = await tx.member.findUnique({ where: { memberCode: code } });
+    if (!exists) return code;
+  }
+  return generateMemberCode() + Date.now().toString(36).slice(-3).toUpperCase();
 }
 
 export async function POST(request: NextRequest) {
@@ -98,12 +127,14 @@ export async function POST(request: NextRequest) {
 
   const startDate = new Date(data.startDate);
   const expiryDate = calcExpiryDate(startDate, plan.durationDays);
-  const status = deriveMemberStatus(expiryDate);
+  const status = deriveMemberStatus(expiryDate, undefined, data.status);
 
   try {
     const member = await prisma.$transaction(async (tx) => {
+      const memberCode = await uniqueMemberCode(tx);
       const created = await tx.member.create({
         data: {
+          memberCode,
           fullName: data.fullName,
           email: data.email.toLowerCase().trim(),
           phone,
@@ -135,7 +166,6 @@ export async function POST(request: NextRequest) {
       return created;
     });
 
-    // Welcome SMS + email (non-blocking for response if providers missing)
     const welcome = await sendWelcomeMessages({
       memberId: member.id,
       userId: authResult.session!.user.id,

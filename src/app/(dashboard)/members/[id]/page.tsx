@@ -4,6 +4,7 @@ import { ArrowLeft } from "lucide-react";
 import { prisma } from "@/lib/prisma";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { MemberQrCard } from "@/components/members/member-qr-card";
 import {
   formatCurrency,
   formatDate,
@@ -45,7 +46,7 @@ export default async function MemberProfilePage({ params }: Props) {
           <div>
             <h1 className="text-2xl font-semibold tracking-tight">{member.fullName}</h1>
             <p className="text-sm text-muted-foreground">
-              {member.email} · {member.phone}
+              {member.memberCode} · {member.email} · {member.phone}
             </p>
           </div>
           <div className="flex gap-2">
@@ -62,6 +63,7 @@ export default async function MemberProfilePage({ params }: Props) {
             <CardDescription>Personal & membership details</CardDescription>
           </CardHeader>
           <CardContent className="space-y-3 text-sm">
+            <Row label="Member code" value={member.memberCode} />
             <Row label="Gender" value={member.gender} />
             <Row label="Emergency" value={member.emergencyContact || "—"} />
             <Row label="Plan" value={member.plan.name} />
@@ -72,7 +74,17 @@ export default async function MemberProfilePage({ params }: Props) {
           </CardContent>
         </Card>
 
-        <Card className="lg:col-span-2">
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle>Member QR</CardTitle>
+            <CardDescription>Print or show at the front desk</CardDescription>
+          </CardHeader>
+          <CardContent className="flex justify-center">
+            <MemberQrCard memberCode={member.memberCode} fullName={member.fullName} />
+          </CardContent>
+        </Card>
+
+        <Card className="lg:col-span-1">
           <CardHeader>
             <CardTitle>Payment History</CardTitle>
             <CardDescription>Invoices and renewals</CardDescription>
@@ -117,19 +129,25 @@ export default async function MemberProfilePage({ params }: Props) {
       <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
-            <CardTitle>Check-In History</CardTitle>
+            <CardTitle>Attendance History</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {member.attendances.length === 0 ? (
-              <Empty text="No check-ins recorded" />
+              <Empty text="No attendance recorded" />
             ) : (
               member.attendances.map((a) => (
                 <div
                   key={a.id}
-                  className="flex justify-between rounded-lg border border-border/60 px-3 py-2 text-sm"
+                  className="flex flex-wrap justify-between gap-2 rounded-lg border border-border/60 px-3 py-2 text-sm"
                 >
-                  <span>Checked in</span>
-                  <span className="text-muted-foreground">{formatDateTime(a.checkedInAt)}</span>
+                  <div>
+                    <p>Checked in {formatDateTime(a.checkedInAt)}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {a.checkedOutAt
+                        ? `Checked out ${formatDateTime(a.checkedOutAt)}`
+                        : "Still checked in"}
+                    </p>
+                  </div>
                 </div>
               ))
             )}

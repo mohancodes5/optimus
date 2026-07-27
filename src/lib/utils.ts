@@ -34,9 +34,12 @@ export function daysUntilExpiry(expiryDate: Date | string) {
 
 export function deriveMemberStatus(
   expiryDate: Date | string,
-  current?: MemberStatus
+  current?: MemberStatus,
+  explicit?: MemberStatus
 ): MemberStatus {
-  if (current === "SUSPENDED") return "SUSPENDED";
+  if (explicit === "SUSPENDED") return "SUSPENDED";
+  if (!explicit && current === "SUSPENDED") return "SUSPENDED";
+
   const days = daysUntilExpiry(expiryDate);
   if (days < 0) return "EXPIRED";
   return "ACTIVE";

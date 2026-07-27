@@ -75,6 +75,7 @@ model MembershipPlan {
 
 model Member {
   id               String         @id @default(cuid())
+  memberCode       String         @unique
   fullName         String
   email            String         @unique
   phone            String
@@ -98,6 +99,8 @@ model Member {
   @@index([status])
   @@index([paymentStatus])
   @@index([fullName])
+  @@index([startDate])
+  @@index([createdAt])
 }
 
 model Payment {
@@ -124,9 +127,10 @@ model Payment {
 }
 
 model Attendance {
-  id            String   @id @default(cuid())
+  id            String    @id @default(cuid())
   memberId      String
-  checkedInAt   DateTime @default(now())
+  checkedInAt   DateTime  @default(now())
+  checkedOutAt  DateTime?
   checkedInById String?
   notes         String?
 

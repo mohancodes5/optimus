@@ -42,7 +42,7 @@ export async function GET() {
       },
     }),
     prisma.member.count({
-      where: { createdAt: { gte: monthStart } },
+      where: { startDate: { gte: monthStart, lte: endOfMonth(now) } },
     }),
     prisma.member.count({
       where: { paymentStatus: { in: ["PENDING", "OVERDUE"] } },
@@ -55,8 +55,8 @@ export async function GET() {
       select: { amount: true, paidAt: true },
     }),
     prisma.member.findMany({
-      where: { createdAt: { gte: startOfMonth(subMonths(now, 5)) } },
-      select: { createdAt: true },
+      where: { startDate: { gte: startOfMonth(subMonths(now, 5)) } },
+      select: { startDate: true },
     }),
     prisma.member.findMany({
       where: {
@@ -86,7 +86,7 @@ export async function GET() {
 
   const growthChart = monthKeys.map((key) => {
     const count = growthByMonthRaw.filter(
-      (m) => format(m.createdAt, "yyyy-MM") === key
+      (m) => format(m.startDate, "yyyy-MM") === key
     ).length;
     return {
       month: format(new Date(`${key}-01`), "MMM"),

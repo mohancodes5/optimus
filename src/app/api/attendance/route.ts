@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireSession } from "@/lib/api-auth";
 import { attendanceSchema } from "@/lib/validations";
+import { parseMemberQrPayload } from "@/lib/member-code";
 import { startOfDay, endOfDay } from "date-fns";
 
 export async function GET(request: NextRequest) {
@@ -26,7 +27,16 @@ export async function GET(request: NextRequest) {
   const records = await prisma.attendance.findMany({
     where,
     include: {
-      member: { select: { id: true, fullName: true, email: true, phone: true, status: true } },
+      member: {
+        select: {
+          id: true,
+          fullName: true,
+          email: true,
+          phone: true,
+          status: true,
+          memberCode: true,
+        },
+      },
     },
     orderBy: { checkedInAt: "desc" },
     take: 100,
@@ -45,7 +55,16 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
   }
 
-  const member = await prisma.member.findUnique({ where: { id: parsed.data.memberId } });
+  const codeOrId = parsed.data.memberCode
+    ? parseMemberQrPayload(parsed.data.memberCode)
+    : parsed.data.memberId!;
+
+  const member = await prisma.member.findFirst({
+    where: {
+      OR: [{ id: codeOrId }, { memberCode: codeOrId.toUpperCase() }, { memberCode: codeOrId }],
+    },
+  });
+
   if (!member) {
     return NextResponse.json({ error: "Member not found" }, { status: 404 });
   }
@@ -58,16 +77,54 @@ export async function POST(request: NextRequest) {
   }
 
   const now = new Date();
-  const existing = await prisma.attendance.findFirst({
+  const todays = await prisma.attendance.findMany({
     where: {
       memberId: member.id,
       checkedInAt: { gte: startOfDay(now), lte: endOfDay(now) },
     },
+    orderBy: { checkedInAt: "desc" },
   });
 
-  if (existing) {
+  const openSession = todays.find((a) => !a.checkedOutAt);
+  const action =
+    parsed.data.action === "auto"
+      ? openSession
+        ? "checkout"
+        : "checkin"
+      : parsed.data.action;
+
+  if (action === "checkout") {
+    if (!openSession) {
+      return NextResponse.json(
+        { error: "No open check-in to check out", member },
+        { status: 409 }
+      );
+    }
+
+    const attendance = await prisma.attendance.update({
+      where: { id: openSession.id },
+      data: { checkedOutAt: now },
+      include: {
+        member: {
+          select: { id: true, fullName: true, email: true, phone: true, memberCode: true },
+        },
+      },
+    });
+
+    return NextResponse.json({
+      action: "checkout",
+      attendance,
+      message: `${member.fullName} checked out`,
+    });
+  }
+
+  if (openSession) {
     return NextResponse.json(
-      { error: "Member already checked in today", attendance: existing },
+      {
+        error: "Member already checked in — scan again to check out",
+        action: "checkout_available",
+        attendance: openSession,
+      },
       { status: 409 }
     );
   }
@@ -79,9 +136,18 @@ export async function POST(request: NextRequest) {
       checkedInById: authResult.session!.user.id,
     },
     include: {
-      member: { select: { id: true, fullName: true, email: true, phone: true } },
+      member: {
+        select: { id: true, fullName: true, email: true, phone: true, memberCode: true },
+      },
     },
   });
 
-  return NextResponse.json(attendance, { status: 201 });
+  return NextResponse.json(
+    {
+      action: "checkin",
+      attendance,
+      message: `${member.fullName} checked in`,
+    },
+    { status: 201 }
+  );
 }

@@ -128,7 +128,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         startDate,
         expiryDate,
         paymentStatus: data.paymentStatus,
-        status: deriveMemberStatus(expiryDate, existing.status),
+        status: deriveMemberStatus(expiryDate, existing.status, data.status),
         notes: data.notes,
       },
       include: { plan: true },

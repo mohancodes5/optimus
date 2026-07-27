@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { QrCode, Search, CheckCircle2 } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
+import { QrCode, Search, CheckCircle2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,9 +15,11 @@ import {
 } from "@/components/ui/dialog";
 import { Badge } from "@/components/ui/badge";
 import { formatDateTime } from "@/lib/utils";
+import { QrScanner } from "@/components/check-in/qr-scanner";
 
 type MemberHit = {
   id: string;
+  memberCode: string;
   fullName: string;
   email: string;
   phone: string;
@@ -28,6 +30,7 @@ type MemberHit = {
 type Attendance = {
   id: string;
   checkedInAt: string;
+  checkedOutAt: string | null;
   member: { id: string; fullName: string; email: string; phone: string };
 };
 
@@ -36,17 +39,16 @@ export function CheckInPanel() {
   const [results, setResults] = useState<MemberHit[]>([]);
   const [today, setToday] = useState<Attendance[]>([]);
   const [qrOpen, setQrOpen] = useState(false);
-  const [qrCode, setQrCode] = useState("");
   const [loading, setLoading] = useState(false);
 
-  async function loadToday() {
+  const loadToday = useCallback(async () => {
     const res = await fetch("/api/attendance?today=true");
     setToday(await res.json());
-  }
+  }, []);
 
   useEffect(() => {
     loadToday();
-  }, []);
+  }, [loadToday]);
 
   useEffect(() => {
     if (!q.trim()) {
@@ -61,42 +63,44 @@ export function CheckInPanel() {
     return () => clearTimeout(t);
   }, [q]);
 
-  async function checkIn(memberId: string, name: string) {
+  function openSessionFor(memberId: string) {
+    return today.find((a) => a.member.id === memberId && !a.checkedOutAt);
+  }
+
+  async function scanMember(payload: {
+    memberId?: string;
+    memberCode?: string;
+    action?: "auto" | "checkin" | "checkout";
+    nameHint?: string;
+  }) {
     setLoading(true);
     try {
       const res = await fetch("/api/attendance", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ memberId }),
+        body: JSON.stringify({
+          memberId: payload.memberId,
+          memberCode: payload.memberCode,
+          action: payload.action ?? "auto",
+        }),
       });
       const data = await res.json();
-      if (!res.ok) throw new Error(data.error || "Check-in failed");
-      toast.success(`${name} checked in`);
+      if (!res.ok) throw new Error(data.error || "Attendance failed");
+
+      const name = data.attendance?.member?.fullName ?? payload.nameHint ?? "Member";
+      if (data.action === "checkout") {
+        toast.success(`${name} checked out`);
+      } else {
+        toast.success(`${name} checked in`);
+      }
       setQ("");
       setResults([]);
-      setQrOpen(false);
-      setQrCode("");
       await loadToday();
     } catch (err) {
-      toast.error(err instanceof Error ? err.message : "Check-in failed");
+      toast.error(err instanceof Error ? err.message : "Attendance failed");
     } finally {
       setLoading(false);
     }
-  }
-
-  async function handleQrSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    // Simulated QR payload: member email or id
-    const code = qrCode.trim();
-    if (!code) return;
-    const res = await fetch(`/api/members?q=${encodeURIComponent(code)}&pageSize=1`);
-    const json = await res.json();
-    const member = json.data?.[0];
-    if (!member) {
-      toast.error("No member found for that code");
-      return;
-    }
-    await checkIn(member.id, member.fullName);
   }
 
   return (
@@ -105,7 +109,7 @@ export function CheckInPanel() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Check-In</h1>
           <p className="text-sm text-muted-foreground">
-            Mark attendance with search or QR code
+            First scan checks in · next scan checks out
           </p>
         </div>
         <Button variant="outline" onClick={() => setQrOpen(true)}>
@@ -117,7 +121,7 @@ export function CheckInPanel() {
       <Card>
         <CardHeader>
           <CardTitle>Quick Search</CardTitle>
-          <CardDescription>Find a member by name, email, or phone</CardDescription>
+          <CardDescription>Find a member by name, email, phone, or member code</CardDescription>
         </CardHeader>
         <CardContent className="space-y-3">
           <div className="relative">
@@ -130,26 +134,50 @@ export function CheckInPanel() {
             />
           </div>
           <div className="space-y-2">
-            {results.map((m) => (
-              <div
-                key={m.id}
-                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 bg-secondary/30 p-3"
-              >
-                <div>
-                  <p className="font-medium">{m.fullName}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {m.email} · {m.phone}
-                  </p>
+            {results.map((m) => {
+              const open = openSessionFor(m.id);
+              const canAttend = m.status === "ACTIVE";
+              return (
+                <div
+                  key={m.id}
+                  className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/70 bg-secondary/30 p-3"
+                >
+                  <div>
+                    <p className="font-medium">{m.fullName}</p>
+                    <p className="text-xs text-muted-foreground">
+                      {m.memberCode} · {m.email} · {m.phone}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Badge variant={m.status === "ACTIVE" ? "success" : "danger"}>{m.status}</Badge>
+                    {open ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        disabled={loading || !canAttend}
+                        onClick={() =>
+                          scanMember({ memberId: m.id, action: "checkout", nameHint: m.fullName })
+                        }
+                      >
+                        <LogOut className="h-3.5 w-3.5" />
+                        Check Out
+                      </Button>
+                    ) : (
+                      <Button
+                        size="sm"
+                        disabled={loading || !canAttend}
+                        onClick={() =>
+                          scanMember({ memberId: m.id, action: "checkin", nameHint: m.fullName })
+                        }
+                      >
+                        <CheckCircle2 className="h-3.5 w-3.5" />
+                        Check In
+                      </Button>
+                    )}
+                  </div>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Badge variant={m.status === "ACTIVE" ? "success" : "danger"}>{m.status}</Badge>
-                  <Button size="sm" disabled={loading} onClick={() => checkIn(m.id, m.fullName)}>
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    Check In
-                  </Button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </CardContent>
       </Card>
@@ -157,7 +185,9 @@ export function CheckInPanel() {
       <Card>
         <CardHeader>
           <CardTitle>Today&apos;s Attendance</CardTitle>
-          <CardDescription>{today.length} check-ins recorded</CardDescription>
+          <CardDescription>
+            {today.length} session{today.length === 1 ? "" : "s"} recorded
+          </CardDescription>
         </CardHeader>
         <CardContent className="space-y-2">
           {today.length === 0 ? (
@@ -166,13 +196,20 @@ export function CheckInPanel() {
             today.map((a) => (
               <div
                 key={a.id}
-                className="flex items-center justify-between rounded-lg border border-border/60 px-3 py-2"
+                className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-border/60 px-3 py-2"
               >
                 <div>
                   <p className="font-medium">{a.member.fullName}</p>
                   <p className="text-xs text-muted-foreground">{a.member.email}</p>
                 </div>
-                <p className="text-xs text-muted-foreground">{formatDateTime(a.checkedInAt)}</p>
+                <div className="text-right text-xs text-muted-foreground">
+                  <p>In {formatDateTime(a.checkedInAt)}</p>
+                  <p>
+                    {a.checkedOutAt
+                      ? `Out ${formatDateTime(a.checkedOutAt)}`
+                      : "Still in gym"}
+                  </p>
+                </div>
               </div>
             ))
           )}
@@ -180,30 +217,21 @@ export function CheckInPanel() {
       </Card>
 
       <Dialog open={qrOpen} onOpenChange={setQrOpen}>
-        <DialogContent>
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>QR / Member Code</DialogTitle>
+            <DialogTitle>QR Scanner</DialogTitle>
             <DialogDescription>
-              Simulate a scanner by entering a member email, phone, or name.
+              Point the camera at a member QR. First scan = check-in, next scan = check-out.
             </DialogDescription>
           </DialogHeader>
-          <form onSubmit={handleQrSubmit} className="space-y-4">
-            <div className="flex aspect-square items-center justify-center rounded-xl border border-dashed border-border bg-secondary/40">
-              <div className="text-center">
-                <QrCode className="mx-auto mb-2 h-12 w-12 text-primary" />
-                <p className="text-sm text-muted-foreground">Camera simulator ready</p>
-              </div>
-            </div>
-            <Input
-              placeholder="Scan or type member code..."
-              value={qrCode}
-              onChange={(e) => setQrCode(e.target.value)}
-              autoFocus
+          {qrOpen ? (
+            <QrScanner
+              active={qrOpen && !loading}
+              onScan={async (code) => {
+                await scanMember({ memberCode: code });
+              }}
             />
-            <Button type="submit" className="w-full" disabled={loading}>
-              Confirm Check-In
-            </Button>
-          </form>
+          ) : null}
         </DialogContent>
       </Dialog>
     </div>

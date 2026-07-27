@@ -1,88 +1,45 @@
-# GymFlow — Gym Management Application
+# Optimus Fitness — Gym Management
 
-Production-ready full-stack gym management dashboard built with **Next.js App Router**, **Prisma**, **PostgreSQL**, **NextAuth.js**, **Tailwind CSS**, and **Recharts**. Optimized for **Vercel** + **Supabase** or **Neon**.
+Production gym management app built with **Next.js**, **Prisma**, **PostgreSQL**, **Auth.js**, **Tailwind CSS**, and **Recharts**. Deploy on **Vercel** + **Supabase**.
 
 ## Features
 
-- Interactive dashboard with KPI cards, revenue/growth charts, and expiring-soon alerts
-- Member CRUD with search, filters, pagination, and profile history
-- Membership plan management (Admin)
-- Check-in / attendance tracker with QR simulator
-- Simulated email/SMS renewal & unpaid reminders
-- Role-based access: `ADMIN` | `STAFF`
+- Dashboard KPIs, revenue/growth charts, live date/time, expiring-soon alerts
+- Members: search, status/payment/join-month filters, Excel export, QR codes
+- Check-in / check-out via search or camera QR scanner
+- Membership plans (Admin), INR pricing
+- SMS/email reminders (Twilio + Resend)
+- Roles: `ADMIN` | `STAFF`
 
 ## Stack
 
 | Layer | Tech |
 |---|---|
 | Framework | Next.js 16 (App Router) + TypeScript |
-| UI | Tailwind CSS 4 + Radix/shadcn-style components |
-| DB | PostgreSQL via Prisma ORM |
+| UI | Tailwind CSS 4 + Radix components |
+| DB | PostgreSQL via Prisma |
 | Auth | Auth.js (NextAuth v5) credentials + JWT |
 | Charts | Recharts |
-| Deploy | Vercel serverless |
+| Deploy | Vercel |
 
-## Project structure
-
-```
-prisma/
-  schema.prisma          # User, Member, MembershipPlan, Payment, Attendance, Notification
-  seed.ts                # Demo admin/staff + sample members
-src/
-  app/
-    (auth)/login/        # Sign-in
-    (dashboard)/         # Protected app shell
-      page.tsx           # Dashboard hub
-      members/           # List + profile
-      plans/             # Plan pricing
-      check-in/          # Attendance
-      notifications/     # Alerts
-    api/                 # REST API routes
-  components/            # UI + feature modules
-  lib/                   # auth, prisma, validations, utils
-  middleware.ts          # Route protection
-```
-
-## 1. Environment setup
-
-Copy the example env file:
+## 1. Environment
 
 ```bash
 cp .env.example .env
 ```
 
-### Required variables
-
 | Variable | Purpose |
 |---|---|
-| `DATABASE_URL` | Pooled Postgres URL (use for app queries on Vercel) |
-| `DIRECT_URL` | Direct Postgres URL (migrations / `db push`) |
-| `AUTH_SECRET` | Random secret for Auth.js (`openssl rand -base64 32`) |
+| `DATABASE_URL` | Pooled Postgres (Vercel / app queries) |
+| `DIRECT_URL` | Direct/session URL (migrations) |
+| `AUTH_SECRET` | Auth.js secret (`openssl rand -base64 32`) |
 | `AUTH_URL` | App URL (`http://localhost:3000` locally) |
+| `SEED_ADMIN_EMAIL` | First admin email (bootstrap only) |
+| `SEED_ADMIN_PASSWORD` | First admin password, min 10 chars |
 
-### Supabase
+See `.env.example` for Twilio, Resend, and cron secrets.
 
-1. Create a project at [supabase.com](https://supabase.com)
-2. **Project Settings → Database → Connection string**
-3. Use **Transaction pooler** (port `6543`) for `DATABASE_URL` and append `?pgbouncer=true`
-4. Use **Direct connection** (port `5432`) for `DIRECT_URL`
-
-Example:
-
-```env
-DATABASE_URL="postgresql://postgres.xxxx:PASSWORD@aws-0-....pooler.supabase.com:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres.xxxx:PASSWORD@aws-0-....supabase.com:5432/postgres"
-AUTH_SECRET="paste-generated-secret"
-AUTH_URL="http://localhost:3000"
-```
-
-### Neon
-
-1. Create a project at [neon.tech](https://neon.tech)
-2. Copy the pooled connection string → `DATABASE_URL`
-3. Copy the direct (non-pooled) string → `DIRECT_URL`
-
-## 2. Local install & database
+## 2. Install & bootstrap
 
 ```bash
 npm install
@@ -91,150 +48,27 @@ npm run db:seed
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000)
+`db:seed` creates **only** your admin user and starter plans (if none exist). It does **not** create fake members.
 
-### Demo logins
+Optional: `SEED_CLEAR_DEMO=true` clears members/payments/attendance/notifications before bootstrap.
 
-| Role | Email | Password |
-|---|---|---|
-| Admin | `admin@gymflow.app` | `password123` |
-| Staff | `staff@gymflow.app` | `password123` |
+Open [http://localhost:3000](http://localhost:3000) and sign in with `SEED_ADMIN_*`.
 
-Admins can create/edit/delete plans and delete members. Staff can manage members, check-ins, and notifications.
+Admins manage plans and can delete members. Staff manage members, check-ins, and alerts.
 
-## Upload to GitHub
+## 3. Deploy (Vercel)
 
-The project is not a git repo yet. Run these in the project folder (`Optimus`):
-
-### 1. Create an empty repo on GitHub
-1. Go to [github.com/new](https://github.com/new)
-2. Name it e.g. `gymflow` (Public or Private)
-3. **Do not** add a README, `.gitignore`, or license (this folder already has them)
-4. Click **Create repository**
-
-### 2. Push this project
-
-```bash
-cd C:\Users\MORULAA\Desktop\Optimus
-
-git init
-git add .
-git commit -m "Initial commit: GymFlow gym management app"
-
-git branch -M main
-git remote add origin https://github.com/YOUR_USERNAME/gymflow.git
-git push -u origin main
-```
-
-Replace `YOUR_USERNAME` and `gymflow` with your GitHub username and repo name.
-
-If GitHub asks you to sign in, use a **Personal Access Token** as the password (Settings → Developer settings → Personal access tokens), or sign in with GitHub CLI: `gh auth login`.
-
-**Never commit `.env`** — it is already in `.gitignore`. Only `.env.example` should be on GitHub.
-
----
-
-## Connect PostgreSQL (Supabase or Neon)
-
-Locally the app uses **SQLite** so login works without setup. For production (and Vercel), switch to **PostgreSQL**.
-
-### A. Create a database
-
-**Option 1 — Neon (simple)**  
-1. Sign up at [neon.tech](https://neon.tech) → create a project  
-2. Open **Connection details**  
-3. Copy **Pooled** connection string → `DATABASE_URL`  
-4. Copy **Direct** connection string → `DIRECT_URL`
-
-**Option 2 — Supabase**  
-1. Sign up at [supabase.com](https://supabase.com) → create a project  
-2. **Project Settings → Database → Connection string**  
-3. **Transaction pooler** (port `6543`) → `DATABASE_URL` (add `?pgbouncer=true` if missing)  
-4. **Direct** (port `5432`) → `DIRECT_URL`
-
-### B. Switch Prisma from SQLite to PostgreSQL
-
-Open `prisma/schema.prisma` and change the top to:
-
-```prisma
-datasource db {
-  provider  = "postgresql"
-  url       = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
-}
-```
-
-Update `prisma.config.ts` datasource url to use env (or remove hardcoded sqlite path).
-
-Put this in your `.env`:
-
-```env
-DATABASE_URL="postgresql://USER:PASSWORD@HOST:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://USER:PASSWORD@HOST:5432/postgres"
-AUTH_SECRET="paste-a-long-random-secret"
-NEXTAUTH_SECRET="paste-a-long-random-secret"
-AUTH_URL="http://localhost:3000"
-```
-
-Then create tables and demo users:
-
-```bash
-npx prisma generate
-npx prisma db push
-npm run db:seed
-npm run dev
-```
-
-Login stays the same: `admin@gymflow.app` / `password123`
-
-### C. Use the same Postgres on Vercel
-
-1. Import the GitHub repo in [vercel.com/new](https://vercel.com/new)
-2. Add env vars: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `AUTH_URL` (`https://your-app.vercel.app`)
+1. Push to GitHub and import in [vercel.com/new](https://vercel.com/new)
+2. Add env vars: `DATABASE_URL`, `DIRECT_URL`, `AUTH_SECRET`, `AUTH_URL` (your live URL), `AUTH_TRUST_HOST=true`
 3. Deploy
-4. From your PC (with production URLs in `.env`), run `npx prisma db push` and `npm run db:seed` once
-
-## 3. One-click Vercel deployment
-
-### Option A — Deploy button / CLI
-
-1. Push this repo to GitHub (steps above)
-2. Import the repo in [vercel.com/new](https://vercel.com/new)
-3. Add environment variables in the Vercel project settings:
-
-   - `DATABASE_URL`
-   - `DIRECT_URL`
-   - `AUTH_SECRET`
-   - `AUTH_URL` = `https://your-project.vercel.app`
-
-4. Deploy
-5. After the first deploy, run migrations against production from your machine:
+4. Bootstrap admin once from your machine (production URLs in `.env`):
 
 ```bash
-# Point .env at production URLs temporarily, then:
 npx prisma db push
 npm run db:seed
 ```
 
-Or use Vercel’s Prisma / database integrations (Neon / Supabase) for managed connection strings.
-
-### Option B — Vercel CLI
-
-```bash
-npm i -g vercel
-vercel
-vercel env add DATABASE_URL
-vercel env add DIRECT_URL
-vercel env add AUTH_SECRET
-vercel env add AUTH_URL
-vercel --prod
-```
-
-### Build notes
-
-- `postinstall` / `build` run `prisma generate`
-- Dashboard routes are `force-dynamic` (auth + live DB data)
-- Notifications are **simulated** (logged as sent) — wire Resend / Twilio when ready
+More detail: [VERCEL_SETUP.md](./VERCEL_SETUP.md)
 
 ## API overview
 
@@ -244,7 +78,7 @@ vercel --prod
 | GET/PATCH/DELETE | `/api/members/[id]` | Profile, update, renew |
 | GET/POST | `/api/plans` | List / create plans |
 | PATCH/DELETE | `/api/plans/[id]` | Update / deactivate plan |
-| GET/POST | `/api/attendance` | Today’s check-ins / mark attendance |
+| GET/POST | `/api/attendance` | List / check-in & check-out |
 | GET | `/api/dashboard/stats` | KPI + chart payloads |
 | GET/POST | `/api/notifications` | List / send reminders |
 | GET/PATCH | `/api/payments` | Payment history / status |
@@ -252,10 +86,10 @@ vercel --prod
 ## Scripts
 
 ```bash
-npm run dev          # Next.js dev server
+npm run dev          # Dev server
 npm run build        # prisma generate + production build
 npm run db:push      # Sync schema to DB
-npm run db:seed      # Seed demo data
+npm run db:seed      # Production admin + starter plans only
 npm run db:studio    # Prisma Studio
 ```
 
