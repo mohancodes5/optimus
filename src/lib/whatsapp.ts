@@ -26,13 +26,16 @@ function getWhatsAppFrom() {
 
 /**
  * Send WhatsApp via Twilio.
- * - Uses Content Template (contentSid) when configured — required outside the 24h window
- * - Falls back to free-form body when no contentSid (sandbox / open session)
+ *
+ * Production tip:
+ * - Sandbox requires each recipient to message "join <code>" to the sandbox number first.
+ * - Outside the 24h window you need an approved Content Template (contentSid).
+ * - Set TWILIO_WHATSAPP_USE_TEMPLATE=true to force templates; otherwise free-form body is preferred
+ *   (more reliable for sandbox / open sessions).
  */
 export async function sendWhatsApp(params: {
   to: string;
   body: string;
-  /** Template variables {"1":"...","2":"..."} for Twilio Content API */
   contentVariables?: Record<string, string>;
   contentSid?: string;
 }): Promise<WhatsAppResult> {
@@ -56,48 +59,63 @@ export async function sendWhatsApp(params: {
     };
   }
 
-  const contentSid =
-    params.contentSid ||
-    process.env.TWILIO_WHATSAPP_CONTENT_SID?.trim() ||
-    undefined;
+  const useTemplate = process.env.TWILIO_WHATSAPP_USE_TEMPLATE === "true";
+  const contentSid = useTemplate
+    ? params.contentSid || process.env.TWILIO_WHATSAPP_CONTENT_SID?.trim() || undefined
+    : params.contentSid || undefined;
+
+  const body = params.body.slice(0, 1600);
+
+  async function sendWithTemplate() {
+    if (!contentSid) return null;
+    return client!.messages.create({
+      from: from!,
+      to: to!,
+      contentSid,
+      contentVariables: JSON.stringify(
+        params.contentVariables ?? { "1": body.slice(0, 60), "2": "Optimus" }
+      ),
+    });
+  }
+
+  async function sendWithBody() {
+    return client!.messages.create({
+      from: from!,
+      to: to!,
+      body,
+    });
+  }
 
   try {
-    const message = await client.messages.create({
-      from,
-      to,
-      ...(contentSid
-        ? {
-            contentSid,
-            contentVariables: JSON.stringify(
-              params.contentVariables ?? { "1": params.body.slice(0, 60), "2": "Optimus" }
-            ),
-          }
-        : {
-            body: params.body.slice(0, 1600),
-          }),
-    });
+    // Prefer free-form body for reliability unless templates are forced
+    const message = contentSid
+      ? (await sendWithTemplate()) ?? (await sendWithBody())
+      : await sendWithBody();
+
     return { ok: true, sid: message.sid, to: normalizePhone(params.to) ?? undefined };
   } catch (error) {
-    // If template send fails, retry once with free-form body (sandbox / open session)
-    if (contentSid) {
-      try {
-        const fallback = await client.messages.create({
-          from,
-          to,
-          body: params.body.slice(0, 1600),
-        });
+    // Cross-fallback: template ↔ body
+    try {
+      const fallback = contentSid ? await sendWithBody() : await sendWithTemplate();
+      if (fallback) {
         return { ok: true, sid: fallback.sid, to: normalizePhone(params.to) ?? undefined };
-      } catch {
-        // fall through to original error
       }
+    } catch {
+      // keep original error
     }
 
     const msg = error instanceof Error ? error.message : "WhatsApp send failed";
-    const hint = msg.toLowerCase().includes("not a valid") || msg.toLowerCase().includes("sandbox")
-      ? " For Twilio WhatsApp Sandbox, the member must first send “join <code>” to +14155238886."
-      : msg.toLowerCase().includes("permission") || msg.toLowerCase().includes("unverified")
-        ? " Twilio trial accounts only message verified numbers — upgrade or verify the number."
-        : "";
+    const lower = msg.toLowerCase();
+    let hint = "";
+    if (lower.includes("sandbox") || lower.includes("not a valid whatsapp") || lower.includes("63007") || lower.includes("63016")) {
+      hint =
+        " Recipient must join the WhatsApp Sandbox first (send “join <code>” to +14155238886). For production, register a WhatsApp Business sender.";
+    } else if (lower.includes("63032") || lower.includes("template") || lower.includes("63027")) {
+      hint = " Use an approved WhatsApp Content Template, or set TWILIO_WHATSAPP_USE_TEMPLATE=false for free-form (24h window).";
+    } else if (lower.includes("unverified") || lower.includes("permission")) {
+      hint = " Verify the number in Twilio Console or upgrade off the trial account.";
+    }
+
     return {
       ok: false,
       to: normalizePhone(params.to) ?? undefined,

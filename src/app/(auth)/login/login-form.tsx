@@ -31,7 +31,11 @@ export default function LoginForm() {
       });
 
       if (res?.error) {
-        setError("Invalid email or password.");
+        setError(
+          res.error === "Configuration"
+            ? "Sign-in is misconfigured. Set AUTH_URL to your live site URL in Vercel."
+            : "Invalid email or password."
+        );
         setLoading(false);
         return;
       }

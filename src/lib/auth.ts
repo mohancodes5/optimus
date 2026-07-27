@@ -6,16 +6,27 @@ import type { Role } from "@prisma/client";
 import { authConfig } from "@/lib/auth.config";
 
 /**
- * On Vercel, always prefer the real deployment host.
- * A wrong AUTH_URL (e.g. localhost or a placeholder) breaks login cookies/CSRF.
+ * Prefer the explicit AUTH_URL (stable production / custom domain).
+ * Never force VERCEL_URL over AUTH_URL — that breaks cookies on aliased domains
+ * and surfaces as "Invalid email or password" even when credentials are correct.
  */
 function resolveAuthUrl() {
-  const vercelHost =
-    process.env.VERCEL_PROJECT_PRODUCTION_URL || process.env.VERCEL_URL;
-  if (process.env.VERCEL && vercelHost) {
-    return `https://${vercelHost.replace(/^https?:\/\//, "")}`;
+  const explicit = (process.env.AUTH_URL || process.env.NEXTAUTH_URL || "").replace(/\/$/, "");
+  if (explicit && !/localhost|127\.0\.0\.1/i.test(explicit)) {
+    return explicit;
   }
-  return process.env.AUTH_URL || process.env.NEXTAUTH_URL || "http://localhost:3000";
+
+  if (process.env.VERCEL) {
+    const prodHost = process.env.VERCEL_PROJECT_PRODUCTION_URL;
+    if (prodHost) {
+      return `https://${prodHost.replace(/^https?:\/\//, "")}`;
+    }
+    if (process.env.VERCEL_URL) {
+      return `https://${process.env.VERCEL_URL.replace(/^https?:\/\//, "")}`;
+    }
+  }
+
+  return explicit || "http://localhost:3000";
 }
 
 process.env.AUTH_URL = resolveAuthUrl();

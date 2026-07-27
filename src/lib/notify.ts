@@ -115,8 +115,8 @@ export async function notifyMember(input: NotifyInput): Promise<NotifyResult> {
 }
 
 function defaultChannels(): NotificationChannel[] {
-  const channels: NotificationChannel[] = ["SMS", "WHATSAPP", "EMAIL"];
-  return channels;
+  // Always attempt WhatsApp + SMS; email if configured
+  return ["WHATSAPP", "SMS", "EMAIL"];
 }
 
 export async function sendWelcomeMessages(params: {
