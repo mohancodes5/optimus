@@ -30,6 +30,11 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    const member = await prisma.member.findUnique({
+      where: { id: parsed.data.memberId },
+      include: { plan: true },
+    });
+
     const delivery = await notifyMember({
       memberId: parsed.data.memberId,
       userId: authResult.session!.user.id,
@@ -38,6 +43,19 @@ export async function POST(request: NextRequest) {
       title: parsed.data.title,
       message: parsed.data.message,
       idempotencyKey: `${parsed.data.type}-${parsed.data.channel}/${parsed.data.memberId}/${Date.now()}`,
+      contentSid:
+        parsed.data.channel === "WHATSAPP"
+          ? process.env.TWILIO_WHATSAPP_CONTENT_SID_REMINDER ||
+            process.env.TWILIO_WHATSAPP_CONTENT_SID ||
+            undefined
+          : undefined,
+      whatsappVariables:
+        parsed.data.channel === "WHATSAPP"
+          ? {
+              "1": member ? new Date(member.expiryDate).toLocaleDateString("en-IN") : "soon",
+              "2": member?.plan?.name ?? "membership",
+            }
+          : undefined,
     });
 
     const notification = await prisma.notification.findUnique({

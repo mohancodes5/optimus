@@ -53,10 +53,15 @@ export async function sendSms(params: {
     });
     return { ok: true, sid: message.sid, to };
   } catch (error) {
+    const msg = error instanceof Error ? error.message : "SMS send failed";
+    const hint =
+      msg.toLowerCase().includes("unverified") || msg.toLowerCase().includes("trial")
+        ? " Twilio trial accounts only SMS verified numbers — verify the number in Twilio Console or upgrade the account."
+        : "";
     return {
       ok: false,
       to,
-      error: error instanceof Error ? error.message : "SMS send failed",
+      error: `${msg}${hint}`,
     };
   }
 }

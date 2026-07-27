@@ -39,7 +39,7 @@ export const attendanceSchema = z.object({
 export const notificationSchema = z.object({
   memberId: z.string().min(1),
   type: z.enum(["EXPIRING", "UNPAID", "RENEWAL", "GENERAL"]),
-  channel: z.enum(["EMAIL", "SMS", "IN_APP"]).default("EMAIL"),
+  channel: z.enum(["EMAIL", "SMS", "WHATSAPP", "IN_APP"]).default("EMAIL"),
   title: z.string().min(1),
   message: z.string().min(1),
 });
