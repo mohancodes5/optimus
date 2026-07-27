@@ -10,6 +10,7 @@ export const memberSchema = z.object({
   email: z.string().email("Valid email required"),
   phone: z.string().min(7, "Phone is required"),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]),
+  address: z.string().trim().min(5, "Address is required"),
   emergencyContact: z.string().optional().nullable(),
   planId: z.string().min(1, "Plan is required"),
   startDate: z.string().min(1, "Start date is required"),

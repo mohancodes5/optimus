@@ -65,6 +65,7 @@ export default async function MemberProfilePage({ params }: Props) {
           <CardContent className="space-y-3 text-sm">
             <Row label="Member code" value={member.memberCode} />
             <Row label="Gender" value={member.gender} />
+            <Row label="Address" value={member.address || "—"} />
             <Row label="Emergency" value={member.emergencyContact || "—"} />
             <Row label="Plan" value={member.plan.name} />
             <Row label="Fee" value={formatCurrency(Number(member.plan.feeAmount))} />

@@ -81,6 +81,7 @@ model Member {
   email            String         @unique
   phone            String
   gender           Gender
+  address          String?
   emergencyContact String?
   planId           String
   startDate        DateTime

@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ComponentType, type ReactNode } from "react";
 import { toast } from "sonner";
+import { UserRound, MapPin, CreditCard, StickyNote } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -37,6 +38,7 @@ type MemberFormValues = {
   email: string;
   phone: string;
   gender: "MALE" | "FEMALE" | "OTHER";
+  address: string;
   emergencyContact: string;
   planId: string;
   startDate: string;
@@ -50,6 +52,7 @@ const empty: MemberFormValues = {
   email: "",
   phone: "",
   gender: "MALE",
+  address: "",
   emergencyContact: "",
   planId: "",
   startDate: new Date().toISOString().slice(0, 10),
@@ -57,6 +60,28 @@ const empty: MemberFormValues = {
   status: "ACTIVE",
   notes: "",
 };
+
+function Section({
+  icon: Icon,
+  title,
+  children,
+}: {
+  icon: ComponentType<{ className?: string }>;
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="space-y-3 rounded-xl border border-border/70 bg-secondary/30 p-4">
+      <div className="flex items-center gap-2">
+        <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-primary/10 text-primary">
+          <Icon className="h-4 w-4" />
+        </div>
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      </div>
+      <div className="grid gap-3 sm:grid-cols-2">{children}</div>
+    </section>
+  );
+}
 
 export function MemberFormModal({
   open,
@@ -68,7 +93,11 @@ export function MemberFormModal({
   open: boolean;
   onOpenChange: (open: boolean) => void;
   plans: Plan[];
-  initial?: (Partial<MemberFormValues> & { emergencyContact?: string | null; notes?: string | null }) | null;
+  initial?: (Partial<MemberFormValues> & {
+    address?: string | null;
+    emergencyContact?: string | null;
+    notes?: string | null;
+  }) | null;
   onSaved: () => void;
 }) {
   const [form, setForm] = useState<MemberFormValues>(empty);
@@ -79,6 +108,7 @@ export function MemberFormModal({
       setForm({
         ...empty,
         ...initial,
+        address: initial?.address ?? "",
         emergencyContact: initial?.emergencyContact ?? "",
         notes: initial?.notes ?? "",
       });
@@ -110,7 +140,7 @@ export function MemberFormModal({
       if (!res.ok) {
         throw new Error(data.error?.formErrors?.[0] || data.error || "Save failed");
       }
-      toast.success(form.id ? "Member updated" : "Member added");
+      toast.success(form.id ? "Member updated" : "Member registered");
       onOpenChange(false);
       onSaved();
     } catch (err) {
@@ -124,37 +154,42 @@ export function MemberFormModal({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-h-[90vh] overflow-y-auto sm:max-w-xl">
-        <DialogHeader>
-          <DialogTitle>{form.id ? "Edit Member" : "Add Member"}</DialogTitle>
+      <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
+        <DialogHeader className="space-y-1">
+          <DialogTitle className="text-xl">
+            {form.id ? "Edit Member" : "Register New Member"}
+          </DialogTitle>
           <DialogDescription>
-            Capture personal details, assign a plan, and set payment status.
+            Fill personal details, address, and membership plan. Fields marked required must be
+            completed.
           </DialogDescription>
         </DialogHeader>
 
         <form onSubmit={handleSubmit} className="space-y-4">
-          <div className="grid gap-4 sm:grid-cols-2">
+          <Section icon={UserRound} title="Personal details">
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="fullName">Full Name</Label>
+              <Label htmlFor="fullName">Full name *</Label>
               <Input
                 id="fullName"
                 required
+                placeholder="Member full name"
                 value={form.fullName}
                 onChange={(e) => setForm((f) => ({ ...f, fullName: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email">Email *</Label>
               <Input
                 id="email"
                 type="email"
                 required
+                placeholder="name@email.com"
                 value={form.email}
                 onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="phone">Phone (WhatsApp / SMS)</Label>
+              <Label htmlFor="phone">Phone (WhatsApp / SMS) *</Label>
               <Input
                 id="phone"
                 required
@@ -164,7 +199,7 @@ export function MemberFormModal({
               />
             </div>
             <div className="space-y-2">
-              <Label>Gender</Label>
+              <Label>Gender *</Label>
               <Select
                 value={form.gender}
                 onValueChange={(v: MemberFormValues["gender"]) =>
@@ -182,29 +217,48 @@ export function MemberFormModal({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="emergency">Emergency Contact</Label>
+              <Label htmlFor="emergency">Emergency contact</Label>
               <Input
                 id="emergency"
+                placeholder="Name or phone"
                 value={form.emergencyContact}
                 onChange={(e) =>
                   setForm((f) => ({ ...f, emergencyContact: e.target.value }))
                 }
               />
             </div>
+          </Section>
+
+          <Section icon={MapPin} title="Address">
             <div className="space-y-2 sm:col-span-2">
-              <Label>Membership Plan</Label>
+              <Label htmlFor="address">Residential address *</Label>
+              <Textarea
+                id="address"
+                required
+                rows={3}
+                placeholder="House / street, area, city, state, PIN"
+                value={form.address}
+                onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
+                className="min-h-[88px] resize-y"
+              />
+            </div>
+          </Section>
+
+          <Section icon={CreditCard} title="Membership">
+            <div className="space-y-2 sm:col-span-2">
+              <Label>Plan *</Label>
               <Select
                 value={form.planId}
                 onValueChange={(v) => setForm((f) => ({ ...f, planId: v }))}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a plan" />
+                  <SelectValue placeholder="Select a membership plan" />
                 </SelectTrigger>
                 <SelectContent>
                   {activePlans.map((plan) => (
                     <SelectItem key={plan.id} value={plan.id}>
                       {plan.name} · {formatCurrency(Number(plan.feeAmount))} ·{" "}
-                      {plan.durationDays}d
+                      {plan.durationDays} days
                     </SelectItem>
                   ))}
                 </SelectContent>
@@ -217,7 +271,7 @@ export function MemberFormModal({
               ) : null}
             </div>
             <div className="space-y-2">
-              <Label htmlFor="startDate">Start Date</Label>
+              <Label htmlFor="startDate">Start date *</Label>
               <Input
                 id="startDate"
                 type="date"
@@ -230,11 +284,12 @@ export function MemberFormModal({
               <Label>Expiry (auto)</Label>
               <Input
                 readOnly
+                className="bg-muted/40"
                 value={expiryPreview ? formatDate(expiryPreview) : "Select plan & start"}
               />
             </div>
             <div className="space-y-2">
-              <Label>Payment Status</Label>
+              <Label>Payment status</Label>
               <Select
                 value={form.paymentStatus}
                 onValueChange={(v: "PAID" | "PENDING") =>
@@ -251,7 +306,7 @@ export function MemberFormModal({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Membership Status</Label>
+              <Label>Membership status</Label>
               <Select
                 value={form.status}
                 onValueChange={(v: MemberFormValues["status"]) =>
@@ -268,22 +323,27 @@ export function MemberFormModal({
                 </SelectContent>
               </Select>
             </div>
+          </Section>
+
+          <Section icon={StickyNote} title="Notes">
             <div className="space-y-2 sm:col-span-2">
-              <Label htmlFor="notes">Notes</Label>
+              <Label htmlFor="notes">Internal notes</Label>
               <Textarea
                 id="notes"
+                rows={2}
+                placeholder="Optional notes for staff"
                 value={form.notes}
                 onChange={(e) => setForm((f) => ({ ...f, notes: e.target.value }))}
               />
             </div>
-          </div>
+          </Section>
 
-          <DialogFooter>
+          <DialogFooter className="gap-2 sm:gap-0">
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving || !form.planId}>
-              {saving ? "Saving..." : form.id ? "Save Changes" : "Add Member"}
+            <Button type="submit" disabled={saving || !form.planId || !form.address.trim()}>
+              {saving ? "Saving..." : form.id ? "Save Changes" : "Register Member"}
             </Button>
           </DialogFooter>
         </form>

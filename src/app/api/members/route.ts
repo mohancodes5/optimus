@@ -139,6 +139,7 @@ export async function POST(request: NextRequest) {
           email: data.email.toLowerCase().trim(),
           phone,
           gender: data.gender,
+          address: data.address.trim(),
           emergencyContact: data.emergencyContact || null,
           planId: data.planId,
           startDate,

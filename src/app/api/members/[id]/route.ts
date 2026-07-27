@@ -123,6 +123,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         email: data.email?.toLowerCase().trim(),
         phone: data.phone ? normalizePhone(data.phone) ?? data.phone.trim() : undefined,
         gender: data.gender,
+        address: data.address?.trim(),
         emergencyContact: data.emergencyContact,
         planId,
         startDate,
