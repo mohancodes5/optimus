@@ -12,6 +12,8 @@ export async function GET(request: NextRequest) {
   const { searchParams } = new URL(request.url);
   const memberId = searchParams.get("memberId");
   const today = searchParams.get("today") === "true";
+  const date = searchParams.get("date"); // yyyy-MM-dd
+  const exportAll = searchParams.get("export") === "true";
 
   const where: {
     memberId?: string;
@@ -19,9 +21,9 @@ export async function GET(request: NextRequest) {
   } = {};
 
   if (memberId) where.memberId = memberId;
-  if (today) {
-    const now = new Date();
-    where.checkedInAt = { gte: startOfDay(now), lte: endOfDay(now) };
+  if (today || date) {
+    const base = date ? new Date(`${date}T12:00:00`) : new Date();
+    where.checkedInAt = { gte: startOfDay(base), lte: endOfDay(base) };
   }
 
   const records = await prisma.attendance.findMany({
@@ -39,7 +41,7 @@ export async function GET(request: NextRequest) {
       },
     },
     orderBy: { checkedInAt: "desc" },
-    take: 100,
+    take: exportAll ? 5000 : 100,
   });
 
   return NextResponse.json(records);
