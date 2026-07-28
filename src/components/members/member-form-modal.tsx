@@ -387,7 +387,7 @@ export function MemberFormModal({
               </div>
             )}
 
-            {category === "COUPLES" && form.planId ? (
+            {category === "COUPLES" ? (
               <div className="space-y-2 sm:col-span-2">
                 <Label htmlFor="partnerName">Partner name *</Label>
                 <Input
@@ -397,6 +397,9 @@ export function MemberFormModal({
                   value={form.partnerName}
                   onChange={(e) => setForm((f) => ({ ...f, partnerName: e.target.value }))}
                 />
+                <p className="text-xs text-muted-foreground">
+                  Required for couples membership packages.
+                </p>
               </div>
             ) : null}
 
