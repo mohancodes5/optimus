@@ -8,8 +8,12 @@ export default async function MembersPage() {
   });
 
   const serializedPlans = plans.map((p) => ({
-    ...p,
+    id: p.id,
+    name: p.name,
+    category: p.category,
+    durationDays: p.durationDays,
     feeAmount: Number(p.feeAmount),
+    isActive: p.isActive,
   }));
 
   return (

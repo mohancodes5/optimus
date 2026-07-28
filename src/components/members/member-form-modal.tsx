@@ -135,7 +135,11 @@ export function MemberFormModal({
   const packageOptions = useMemo(() => {
     if (!category) return [];
     return plans
-      .filter((p) => p.category === category && (p.isActive || p.id === form.planId))
+      .filter(
+        (p) =>
+          String(p.category).toUpperCase() === category &&
+          (p.isActive || p.id === form.planId)
+      )
       .sort((a, b) => a.durationDays - b.durationDays);
   }, [plans, category, form.planId]);
 
@@ -186,8 +190,7 @@ export function MemberFormModal({
             {form.id ? "Edit Member" : "Register New Member"}
           </DialogTitle>
           <DialogDescription>
-            Choose Men / Women / Couples, then pick the package duration. Required fields must be
-            completed.
+            Choose Men / Women / Couples, then select a package (1 / 3 / 6 months or 1 year).
           </DialogDescription>
         </DialogHeader>
 
@@ -272,8 +275,15 @@ export function MemberFormModal({
 
           <Section icon={CreditCard} title="Membership">
             <div className="space-y-3 sm:col-span-2">
-              <Label>Plan type *</Label>
-              <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Plan type">
+              <Label>Member category *</Label>
+              <p className="text-xs text-muted-foreground">
+                Choose Men, Women, or Couples — then pick a package below.
+              </p>
+              <div
+                className="grid gap-2 sm:grid-cols-3"
+                role="radiogroup"
+                aria-label="Member category"
+              >
                 {PLAN_CATEGORIES.map((value) => {
                   const selected = category === value;
                   return (
@@ -282,7 +292,7 @@ export function MemberFormModal({
                       className={cn(
                         "flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 text-sm transition-colors",
                         selected
-                          ? "border-primary bg-primary/10 text-foreground"
+                          ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/30"
                           : "border-border/80 bg-background hover:bg-secondary/50"
                       )}
                     >
@@ -301,42 +311,69 @@ export function MemberFormModal({
               </div>
             </div>
 
-            <div className="space-y-2 sm:col-span-2">
-              <Label>Package *</Label>
-              <Select
-                value={form.planId || undefined}
-                onValueChange={(v) => setForm((f) => ({ ...f, planId: v }))}
-                disabled={!category}
-              >
-                <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      category ? "Select 1 / 3 / 6 months or 1 year" : "Choose plan type first"
-                    }
-                  />
-                </SelectTrigger>
-                <SelectContent>
-                  {packageOptions.map((plan) => (
-                    <SelectItem key={plan.id} value={plan.id}>
-                      {packageLabelForDays(plan.durationDays)} ·{" "}
-                      {formatCurrency(Number(plan.feeAmount))}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {category && packageOptions.length === 0 ? (
-                <p className="text-xs text-destructive">
-                  No active packages for this plan type. Add them under Plans.
-                </p>
-              ) : null}
-              {selectedPlan ? (
-                <p className="text-xs text-muted-foreground">
-                  {PLAN_CATEGORY_LABELS[selectedPlan.category]} ·{" "}
-                  {packageLabelForDays(selectedPlan.durationDays)} ·{" "}
-                  {formatCurrency(Number(selectedPlan.feeAmount))}
-                </p>
-              ) : null}
-            </div>
+            {category ? (
+              <div className="space-y-3 sm:col-span-2">
+                <Label>Package plan *</Label>
+                {packageOptions.length === 0 ? (
+                  <p className="text-sm text-destructive">
+                    No active packages for {PLAN_CATEGORY_LABELS[category]}. Add them under Plans.
+                  </p>
+                ) : (
+                  <div
+                    className="grid gap-2 sm:grid-cols-2"
+                    role="radiogroup"
+                    aria-label="Package plan"
+                  >
+                    {packageOptions.map((plan) => {
+                      const selected = form.planId === plan.id;
+                      return (
+                        <label
+                          key={plan.id}
+                          className={cn(
+                            "flex cursor-pointer items-start gap-3 rounded-xl border px-3 py-3 text-sm transition-colors",
+                            selected
+                              ? "border-primary bg-primary/10 text-foreground ring-1 ring-primary/30"
+                              : "border-border/80 bg-background hover:bg-secondary/50"
+                          )}
+                        >
+                          <input
+                            type="radio"
+                            name="planPackage"
+                            value={plan.id}
+                            checked={selected}
+                            onChange={() => setForm((f) => ({ ...f, planId: plan.id }))}
+                            className="mt-0.5 h-4 w-4 accent-primary"
+                          />
+                          <span className="min-w-0">
+                            <span className="block font-medium">
+                              {packageLabelForDays(plan.durationDays)}
+                            </span>
+                            <span className="block text-xs text-muted-foreground">
+                              {formatCurrency(Number(plan.feeAmount))} · {plan.durationDays} days
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+                {selectedPlan ? (
+                  <p className="text-xs text-muted-foreground">
+                    Selected: {PLAN_CATEGORY_LABELS[selectedPlan.category]} ·{" "}
+                    {packageLabelForDays(selectedPlan.durationDays)} ·{" "}
+                    {formatCurrency(Number(selectedPlan.feeAmount))}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Select one package for {PLAN_CATEGORY_LABELS[category]}.
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="sm:col-span-2 rounded-xl border border-dashed border-border/80 bg-background/60 px-3 py-4 text-center text-sm text-muted-foreground">
+                Package plans will appear here after you choose a member category.
+              </div>
+            )}
 
             <div className="space-y-2">
               <Label htmlFor="startDate">Start date *</Label>
