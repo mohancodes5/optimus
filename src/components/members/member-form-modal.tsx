@@ -47,6 +47,7 @@ type MemberFormValues = {
   gender: "MALE" | "FEMALE" | "OTHER";
   address: string;
   emergencyContact: string;
+  partnerName: string;
   planId: string;
   startDate: string;
   paymentStatus: "PAID" | "PENDING";
@@ -61,6 +62,7 @@ const empty: MemberFormValues = {
   gender: "MALE",
   address: "",
   emergencyContact: "",
+  partnerName: "",
   planId: "",
   startDate: new Date().toISOString().slice(0, 10),
   paymentStatus: "PENDING",
@@ -103,6 +105,7 @@ export function MemberFormModal({
   initial?: (Partial<MemberFormValues> & {
     address?: string | null;
     emergencyContact?: string | null;
+    partnerName?: string | null;
     notes?: string | null;
   }) | null;
   onSaved: () => void;
@@ -119,6 +122,7 @@ export function MemberFormModal({
       ...initial,
       address: initial?.address ?? "",
       emergencyContact: initial?.emergencyContact ?? "",
+      partnerName: initial?.partnerName ?? "",
       notes: initial?.notes ?? "",
     };
     setForm(nextForm);
@@ -150,13 +154,21 @@ export function MemberFormModal({
 
   function handleCategoryChange(next: PlanCategoryValue) {
     setCategory(next);
-    setForm((f) => ({ ...f, planId: "" }));
+    setForm((f) => ({
+      ...f,
+      planId: "",
+      partnerName: next === "COUPLES" ? f.partnerName : "",
+    }));
   }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!form.planId) {
       toast.error("Select a plan category and package");
+      return;
+    }
+    if (category === "COUPLES" && !form.partnerName.trim()) {
+      toast.error("Enter the partner name for the couples package");
       return;
     }
     setSaving(true);
@@ -375,6 +387,19 @@ export function MemberFormModal({
               </div>
             )}
 
+            {category === "COUPLES" && form.planId ? (
+              <div className="space-y-2 sm:col-span-2">
+                <Label htmlFor="partnerName">Partner name *</Label>
+                <Input
+                  id="partnerName"
+                  required
+                  placeholder="Enter partner / spouse full name"
+                  value={form.partnerName}
+                  onChange={(e) => setForm((f) => ({ ...f, partnerName: e.target.value }))}
+                />
+              </div>
+            ) : null}
+
             <div className="space-y-2">
               <Label htmlFor="startDate">Start date *</Label>
               <Input
@@ -449,7 +474,12 @@ export function MemberFormModal({
             </Button>
             <Button
               type="submit"
-              disabled={saving || !form.planId || !form.address.trim()}
+              disabled={
+                saving ||
+                !form.planId ||
+                !form.address.trim() ||
+                (category === "COUPLES" && !form.partnerName.trim())
+              }
             >
               {saving ? "Saving..." : form.id ? "Save Changes" : "Register Member"}
             </Button>

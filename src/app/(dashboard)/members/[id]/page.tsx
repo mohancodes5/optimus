@@ -67,6 +67,9 @@ export default async function MemberProfilePage({ params }: Props) {
             <Row label="Gender" value={member.gender} />
             <Row label="Address" value={member.address || "—"} />
             <Row label="Emergency" value={member.emergencyContact || "—"} />
+            {member.partnerName || member.plan.category === "COUPLES" ? (
+              <Row label="Partner" value={member.partnerName || "—"} />
+            ) : null}
             <Row label="Plan" value={member.plan.name} />
             <Row
               label="Category"

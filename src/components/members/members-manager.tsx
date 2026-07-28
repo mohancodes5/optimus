@@ -46,6 +46,7 @@ type Member = {
   gender: "MALE" | "FEMALE" | "OTHER";
   address: string | null;
   emergencyContact: string | null;
+  partnerName: string | null;
   planId: string;
   startDate: string;
   expiryDate: string;
@@ -98,6 +99,7 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
     gender: "MALE" | "FEMALE" | "OTHER";
     address: string;
     emergencyContact: string;
+    partnerName: string;
     planId: string;
     startDate: string;
     paymentStatus: "PAID" | "PENDING";
@@ -431,6 +433,7 @@ export function MembersManager({ plans }: { plans: Plan[] }) {
                               gender: m.gender,
                               address: m.address ?? "",
                               emergencyContact: m.emergencyContact ?? "",
+                              partnerName: m.partnerName ?? "",
                               planId: m.planId,
                               startDate: m.startDate.slice(0, 10),
                               paymentStatus:

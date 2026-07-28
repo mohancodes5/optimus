@@ -93,6 +93,7 @@ model Member {
   gender           Gender
   address          String?
   emergencyContact String?
+  partnerName      String?
   planId           String
   startDate        DateTime
   expiryDate       DateTime
