@@ -22,11 +22,18 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { calcExpiryDate, formatCurrency, formatDate } from "@/lib/utils";
+import { calcExpiryDate, cn, formatCurrency, formatDate } from "@/lib/utils";
+import {
+  PLAN_CATEGORIES,
+  PLAN_CATEGORY_LABELS,
+  packageLabelForDays,
+  type PlanCategoryValue,
+} from "@/lib/plans";
 
 type Plan = {
   id: string;
   name: string;
+  category: PlanCategoryValue;
   durationDays: number;
   feeAmount: string | number;
   isActive: boolean;
@@ -101,32 +108,53 @@ export function MemberFormModal({
   onSaved: () => void;
 }) {
   const [form, setForm] = useState<MemberFormValues>(empty);
+  const [category, setCategory] = useState<PlanCategoryValue | "">("");
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    if (open) {
-      setForm({
-        ...empty,
-        ...initial,
-        address: initial?.address ?? "",
-        emergencyContact: initial?.emergencyContact ?? "",
-        notes: initial?.notes ?? "",
-      });
-    }
-  }, [open, initial]);
+    if (!open) return;
+
+    const nextForm: MemberFormValues = {
+      ...empty,
+      ...initial,
+      address: initial?.address ?? "",
+      emergencyContact: initial?.emergencyContact ?? "",
+      notes: initial?.notes ?? "",
+    };
+    setForm(nextForm);
+
+    const matched = plans.find((p) => p.id === nextForm.planId);
+    setCategory(matched?.category ?? "");
+  }, [open, initial, plans]);
 
   const selectedPlan = useMemo(
     () => plans.find((p) => p.id === form.planId),
     [plans, form.planId]
   );
 
+  const packageOptions = useMemo(() => {
+    if (!category) return [];
+    return plans
+      .filter((p) => p.category === category && (p.isActive || p.id === form.planId))
+      .sort((a, b) => a.durationDays - b.durationDays);
+  }, [plans, category, form.planId]);
+
   const expiryPreview = useMemo(() => {
     if (!selectedPlan || !form.startDate) return null;
     return calcExpiryDate(new Date(form.startDate), selectedPlan.durationDays);
   }, [selectedPlan, form.startDate]);
 
+  function handleCategoryChange(next: PlanCategoryValue) {
+    setCategory(next);
+    setForm((f) => ({ ...f, planId: "" }));
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (!form.planId) {
+      toast.error("Select a plan category and package");
+      return;
+    }
     setSaving(true);
     try {
       const url = form.id ? `/api/members/${form.id}` : "/api/members";
@@ -150,8 +178,6 @@ export function MemberFormModal({
     }
   }
 
-  const activePlans = plans.filter((p) => p.isActive || p.id === form.planId);
-
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-h-[92vh] overflow-y-auto sm:max-w-2xl">
@@ -160,7 +186,7 @@ export function MemberFormModal({
             {form.id ? "Edit Member" : "Register New Member"}
           </DialogTitle>
           <DialogDescription>
-            Fill personal details, address, and membership plan. Fields marked required must be
+            Choose Men / Women / Couples, then pick the package duration. Required fields must be
             completed.
           </DialogDescription>
         </DialogHeader>
@@ -245,31 +271,73 @@ export function MemberFormModal({
           </Section>
 
           <Section icon={CreditCard} title="Membership">
+            <div className="space-y-3 sm:col-span-2">
+              <Label>Plan type *</Label>
+              <div className="grid gap-2 sm:grid-cols-3" role="radiogroup" aria-label="Plan type">
+                {PLAN_CATEGORIES.map((value) => {
+                  const selected = category === value;
+                  return (
+                    <label
+                      key={value}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-3 rounded-xl border px-3 py-3 text-sm transition-colors",
+                        selected
+                          ? "border-primary bg-primary/10 text-foreground"
+                          : "border-border/80 bg-background hover:bg-secondary/50"
+                      )}
+                    >
+                      <input
+                        type="radio"
+                        name="planCategory"
+                        value={value}
+                        checked={selected}
+                        onChange={() => handleCategoryChange(value)}
+                        className="h-4 w-4 accent-primary"
+                      />
+                      <span className="font-medium">{PLAN_CATEGORY_LABELS[value]}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            </div>
+
             <div className="space-y-2 sm:col-span-2">
-              <Label>Plan *</Label>
+              <Label>Package *</Label>
               <Select
-                value={form.planId}
+                value={form.planId || undefined}
                 onValueChange={(v) => setForm((f) => ({ ...f, planId: v }))}
+                disabled={!category}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select a membership plan" />
+                  <SelectValue
+                    placeholder={
+                      category ? "Select 1 / 3 / 6 months or 1 year" : "Choose plan type first"
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
-                  {activePlans.map((plan) => (
+                  {packageOptions.map((plan) => (
                     <SelectItem key={plan.id} value={plan.id}>
-                      {plan.name} · {formatCurrency(Number(plan.feeAmount))} ·{" "}
-                      {plan.durationDays} days
+                      {packageLabelForDays(plan.durationDays)} ·{" "}
+                      {formatCurrency(Number(plan.feeAmount))}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              {category && packageOptions.length === 0 ? (
+                <p className="text-xs text-destructive">
+                  No active packages for this plan type. Add them under Plans.
+                </p>
+              ) : null}
               {selectedPlan ? (
                 <p className="text-xs text-muted-foreground">
-                  Duration {selectedPlan.durationDays} days · Fee{" "}
+                  {PLAN_CATEGORY_LABELS[selectedPlan.category]} ·{" "}
+                  {packageLabelForDays(selectedPlan.durationDays)} ·{" "}
                   {formatCurrency(Number(selectedPlan.feeAmount))}
                 </p>
               ) : null}
             </div>
+
             <div className="space-y-2">
               <Label htmlFor="startDate">Start date *</Label>
               <Input
@@ -285,7 +353,7 @@ export function MemberFormModal({
               <Input
                 readOnly
                 className="bg-muted/40"
-                value={expiryPreview ? formatDate(expiryPreview) : "Select plan & start"}
+                value={expiryPreview ? formatDate(expiryPreview) : "Select package & start"}
               />
             </div>
             <div className="space-y-2">
@@ -342,7 +410,10 @@ export function MemberFormModal({
             <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
               Cancel
             </Button>
-            <Button type="submit" disabled={saving || !form.planId || !form.address.trim()}>
+            <Button
+              type="submit"
+              disabled={saving || !form.planId || !form.address.trim()}
+            >
               {saving ? "Saving..." : form.id ? "Save Changes" : "Register Member"}
             </Button>
           </DialogFooter>

@@ -21,6 +21,7 @@ export async function PATCH(request: NextRequest, { params }: Params) {
     data: {
       name: parsed.data.name,
       description: parsed.data.description,
+      category: parsed.data.category,
       durationDays: parsed.data.durationDays,
       feeAmount: parsed.data.feeAmount,
       perks: parsed.data.perks,

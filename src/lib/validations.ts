@@ -22,6 +22,7 @@ export const memberSchema = z.object({
 export const planSchema = z.object({
   name: z.string().min(2),
   description: z.string().optional().nullable(),
+  category: z.enum(["MEN", "WOMEN", "COUPLES"]),
   durationDays: z.coerce.number().int().positive(),
   feeAmount: z.coerce.number().positive(),
   perks: z.array(z.string()).default([]),

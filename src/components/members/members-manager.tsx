@@ -31,6 +31,7 @@ import { formatCurrency, formatDate, memberStatusBadge, derivePaymentBadge } fro
 type Plan = {
   id: string;
   name: string;
+  category: "MEN" | "WOMEN" | "COUPLES";
   durationDays: number;
   feeAmount: string | number;
   isActive: boolean;

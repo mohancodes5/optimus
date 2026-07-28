@@ -1,11 +1,12 @@
 import "dotenv/config";
 import { PrismaClient, Role } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { PRODUCTION_PLANS } from "../src/lib/plans";
 
 const prisma = new PrismaClient();
 
 /**
- * Production bootstrap — creates admin + starter plans only.
+ * Production bootstrap — admin + Men/Women/Couples plan catalog.
  * Never creates fake members, payments, or attendance.
  *
  * Required env:
@@ -14,12 +15,16 @@ const prisma = new PrismaClient();
  * Optional:
  *   SEED_ADMIN_NAME      (default: "Admin")
  *   SEED_CLEAR_DEMO=true — wipe members/payments/attendance/notifications first
+ *   SEED_SYNC_PLANS=true — upsert the 12 production packages (default: true when no plans)
  */
 async function main() {
   const email = process.env.SEED_ADMIN_EMAIL?.trim().toLowerCase();
   const password = process.env.SEED_ADMIN_PASSWORD ?? "";
   const name = process.env.SEED_ADMIN_NAME?.trim() || "Admin";
   const clearDemo = process.env.SEED_CLEAR_DEMO === "true";
+  const syncPlans =
+    process.env.SEED_SYNC_PLANS === "true" ||
+    process.env.SEED_SYNC_PLANS === undefined;
 
   if (!email || !email.includes("@")) {
     throw new Error("Set SEED_ADMIN_EMAIL in .env (e.g. owner@yourgym.com)");
@@ -46,7 +51,7 @@ async function main() {
     create: { name, email, passwordHash, role: Role.ADMIN },
   });
 
-  // Remove legacy demo staff account if present
+  // Remove legacy demo accounts if present
   await prisma.user.deleteMany({
     where: {
       email: { in: ["staff@gymflow.app", "admin@gymflow.app"] },
@@ -54,39 +59,41 @@ async function main() {
     },
   });
 
-  const planCount = await prisma.membershipPlan.count();
-  if (planCount === 0) {
-    await prisma.membershipPlan.createMany({
-      data: [
-        {
-          name: "Monthly",
-          description: "Full gym access for 30 days",
-          durationDays: 30,
-          feeAmount: 999,
-          perks: ["Gym floor", "Locker room"],
-          isActive: true,
-        },
-        {
-          name: "Quarterly",
-          description: "3-month membership",
-          durationDays: 90,
-          feeAmount: 2499,
-          perks: ["Gym floor", "Locker room", "Group classes"],
-          isActive: true,
-        },
-        {
-          name: "Annual",
-          description: "Best value yearly membership",
-          durationDays: 365,
-          feeAmount: 8999,
-          perks: ["All quarterly perks", "Priority support"],
-          isActive: true,
-        },
-      ],
+  if (syncPlans) {
+    // Deactivate legacy duration-only plans
+    await prisma.membershipPlan.updateMany({
+      where: { name: { in: ["Monthly", "Quarterly", "Annual"] } },
+      data: { isActive: false },
     });
-    console.log("Created starter membership plans (INR).");
+
+    for (const plan of PRODUCTION_PLANS) {
+      await prisma.membershipPlan.upsert({
+        where: { id: plan.id },
+        update: {
+          name: plan.name,
+          description: plan.description,
+          category: plan.category,
+          durationDays: plan.durationDays,
+          feeAmount: plan.feeAmount,
+          perks: [...plan.perks],
+          isActive: true,
+        },
+        create: {
+          id: plan.id,
+          name: plan.name,
+          description: plan.description,
+          category: plan.category,
+          durationDays: plan.durationDays,
+          feeAmount: plan.feeAmount,
+          perks: [...plan.perks],
+          isActive: true,
+        },
+      });
+    }
+    console.log(`Synced ${PRODUCTION_PLANS.length} membership packages (Men / Women / Couples).`);
   } else {
-    console.log(`Keeping ${planCount} existing plan(s).`);
+    const planCount = await prisma.membershipPlan.count();
+    console.log(`Keeping ${planCount} existing plan(s) (SEED_SYNC_PLANS=false).`);
   }
 
   console.log("Bootstrap complete.");

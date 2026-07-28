@@ -68,6 +68,18 @@ export default async function MemberProfilePage({ params }: Props) {
             <Row label="Address" value={member.address || "—"} />
             <Row label="Emergency" value={member.emergencyContact || "—"} />
             <Row label="Plan" value={member.plan.name} />
+            <Row
+              label="Category"
+              value={
+                member.plan.category === "MEN"
+                  ? "Men's"
+                  : member.plan.category === "WOMEN"
+                    ? "Women's"
+                    : member.plan.category === "COUPLES"
+                      ? "Couples"
+                      : member.plan.category
+              }
+            />
             <Row label="Fee" value={formatCurrency(Number(member.plan.feeAmount))} />
             <Row label="Start" value={formatDate(member.startDate)} />
             <Row label="Expiry" value={formatDate(member.expiryDate)} />
