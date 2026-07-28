@@ -125,6 +125,11 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
   }
 
+  const partnerName = data.partnerName?.trim() || null;
+  if (plan.category === "COUPLES" && !partnerName) {
+    return NextResponse.json({ error: "Partner name is required for couples plans" }, { status: 400 });
+  }
+
   const startDate = new Date(data.startDate);
   const expiryDate = calcExpiryDate(startDate, plan.durationDays);
   const status = deriveMemberStatus(expiryDate, undefined, data.status);
@@ -141,6 +146,7 @@ export async function POST(request: NextRequest) {
           gender: data.gender,
           address: data.address.trim(),
           emergencyContact: data.emergencyContact || null,
+          partnerName: plan.category === "COUPLES" ? partnerName : null,
           planId: data.planId,
           startDate,
           expiryDate,

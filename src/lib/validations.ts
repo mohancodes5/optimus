@@ -12,6 +12,7 @@ export const memberSchema = z.object({
   gender: z.enum(["MALE", "FEMALE", "OTHER"]),
   address: z.string().trim().min(5, "Address is required"),
   emergencyContact: z.string().optional().nullable(),
+  partnerName: z.string().optional().nullable(),
   planId: z.string().min(1, "Plan is required"),
   startDate: z.string().min(1, "Start date is required"),
   paymentStatus: z.enum(["PAID", "PENDING", "OVERDUE"]).default("PENDING"),

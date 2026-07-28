@@ -100,15 +100,35 @@ export async function PATCH(request: NextRequest, { params }: Params) {
 
   let planId = existing.planId;
   let durationDays: number | null = null;
+  let planCategory = (
+    await prisma.membershipPlan.findUnique({ where: { id: existing.planId } })
+  )?.category;
 
   if (data.planId) {
     const plan = await prisma.membershipPlan.findUnique({ where: { id: data.planId } });
     if (!plan) return NextResponse.json({ error: "Invalid plan" }, { status: 400 });
     planId = plan.id;
     durationDays = plan.durationDays;
+    planCategory = plan.category;
   } else if (data.startDate) {
     const plan = await prisma.membershipPlan.findUnique({ where: { id: existing.planId } });
     durationDays = plan?.durationDays ?? null;
+  }
+
+  const partnerName =
+    data.partnerName === undefined
+      ? undefined
+      : data.partnerName?.trim() || null;
+
+  if (planCategory === "COUPLES") {
+    const effectivePartner =
+      partnerName !== undefined ? partnerName : existing.partnerName;
+    if (!effectivePartner?.trim()) {
+      return NextResponse.json(
+        { error: "Partner name is required for couples plans" },
+        { status: 400 }
+      );
+    }
   }
 
   const startDate = data.startDate ? new Date(data.startDate) : existing.startDate;
@@ -125,6 +145,12 @@ export async function PATCH(request: NextRequest, { params }: Params) {
         gender: data.gender,
         address: data.address?.trim(),
         emergencyContact: data.emergencyContact,
+        partnerName:
+          planCategory === "COUPLES"
+            ? partnerName !== undefined
+              ? partnerName
+              : undefined
+            : null,
         planId,
         startDate,
         expiryDate,
