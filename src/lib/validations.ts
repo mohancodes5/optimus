@@ -10,6 +10,7 @@ export const memberSchema = z.object({
   email: z.string().email("Valid email required"),
   phone: z.string().min(7, "Phone is required"),
   gender: z.enum(["MALE", "FEMALE", "OTHER"]),
+  address: z.string().trim().min(5, "Address is required"),
   emergencyContact: z.string().optional().nullable(),
   planId: z.string().min(1, "Plan is required"),
   startDate: z.string().min(1, "Start date is required"),
@@ -21,6 +22,7 @@ export const memberSchema = z.object({
 export const planSchema = z.object({
   name: z.string().min(2),
   description: z.string().optional().nullable(),
+  category: z.enum(["MEN", "WOMEN", "COUPLES"]),
   durationDays: z.coerce.number().int().positive(),
   feeAmount: z.coerce.number().positive(),
   perks: z.array(z.string()).default([]),

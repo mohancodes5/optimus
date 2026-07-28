@@ -8,7 +8,7 @@ export async function GET() {
   if (authResult.error) return authResult.error;
 
   const plans = await prisma.membershipPlan.findMany({
-    orderBy: { feeAmount: "asc" },
+    orderBy: [{ category: "asc" }, { durationDays: "asc" }],
     include: { _count: { select: { members: true } } },
   });
 
@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
     data: {
       name: parsed.data.name,
       description: parsed.data.description || null,
+      category: parsed.data.category,
       durationDays: parsed.data.durationDays,
       feeAmount: parsed.data.feeAmount,
       perks: parsed.data.perks,

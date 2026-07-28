@@ -6,7 +6,7 @@ import { PlansManager } from "@/components/plans/plans-manager";
 export default async function PlansPage() {
   const session = await auth();
   const plans = await prisma.membershipPlan.findMany({
-    orderBy: { feeAmount: "asc" },
+    orderBy: [{ category: "asc" }, { durationDays: "asc" }],
     include: { _count: { select: { members: true } } },
   });
 

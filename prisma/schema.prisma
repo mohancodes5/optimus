@@ -19,6 +19,12 @@ enum Gender {
   OTHER
 }
 
+enum PlanCategory {
+  MEN
+  WOMEN
+  COUPLES
+}
+
 enum PaymentStatus {
   PAID
   PENDING
@@ -60,18 +66,22 @@ model User {
 }
 
 model MembershipPlan {
-  id           String   @id @default(cuid())
+  id           String       @id @default(cuid())
   name         String
   description  String?
+  category     PlanCategory
   durationDays Int
   feeAmount    Decimal
   perks        Json
-  isActive     Boolean  @default(true)
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  isActive     Boolean      @default(true)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   members  Member[]
   payments Payment[]
+
+  @@index([category])
+  @@index([isActive])
 }
 
 model Member {
@@ -81,6 +91,7 @@ model Member {
   email            String         @unique
   phone            String
   gender           Gender
+  address          String?
   emergencyContact String?
   planId           String
   startDate        DateTime
